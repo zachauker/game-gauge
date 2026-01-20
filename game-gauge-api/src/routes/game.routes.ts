@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { gameController } from '../controllers/game.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { ratingController } from '../controllers/rating.controller';
+import { authenticate, optionalAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -70,5 +71,52 @@ router.patch('/:id', authenticate, gameController.update.bind(gameController));
  * @access  Private (TODO: Admin only)
  */
 router.delete('/:id', authenticate, gameController.delete.bind(gameController));
+
+/**
+ * Rating routes for specific games
+ */
+
+/**
+ * @route   GET /api/games/:gameId/rating/stats
+ * @desc    Get rating statistics for a game (average, distribution, etc.)
+ * @access  Public
+ * @note    Must be before other rating routes to avoid matching "stats" as part of path
+ */
+router.get('/:gameId/rating/stats', ratingController.getGameStats.bind(ratingController));
+
+/**
+ * @route   GET /api/games/:gameId/rating/check
+ * @desc    Check if current user has rated this game
+ * @access  Private
+ */
+router.get('/:gameId/rating/check', authenticate, ratingController.checkUserRating.bind(ratingController));
+
+/**
+ * @route   GET /api/games/:gameId/rating/me
+ * @desc    Get current user's rating for this game
+ * @access  Private
+ */
+router.get('/:gameId/rating/me', authenticate, ratingController.getUserRating.bind(ratingController));
+
+/**
+ * @route   GET /api/games/:gameId/ratings
+ * @desc    Get all ratings for a game (paginated)
+ * @access  Public
+ */
+router.get('/:gameId/ratings', ratingController.getGameRatings.bind(ratingController));
+
+/**
+ * @route   POST /api/games/:gameId/rating
+ * @desc    Rate a game (create or update rating)
+ * @access  Private
+ */
+router.post('/:gameId/rating', authenticate, ratingController.rateGame.bind(ratingController));
+
+/**
+ * @route   DELETE /api/games/:gameId/rating
+ * @desc    Delete user's rating for a game
+ * @access  Private
+ */
+router.delete('/:gameId/rating', authenticate, ratingController.deleteRating.bind(ratingController));
 
 export default router;

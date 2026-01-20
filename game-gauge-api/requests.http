@@ -243,17 +243,90 @@ Authorization: Bearer {{auth_token}}
 # }
 
 ###############################################
-# Ratings (Coming Soon)
+# Ratings
 ###############################################
 
-### Rate game (TODO: implement endpoint)
-# POST {{host}}/api/games/{{game_id}}/rating
-# Authorization: Bearer {{auth_token}}
-# Content-Type: {{contentType}}
-#
-# {
-#   "score": 9
-# }
+### Rate a game (create or update rating)
+POST {{host}}/api/games/{{game_id}}/rating
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "score": 9
+}
+
+### Rate another game with different score
+POST {{host}}/api/games/{{game_id}}/rating
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "score": 7
+}
+
+### Update existing rating (same user, same game)
+POST {{host}}/api/games/{{game_id}}/rating
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "score": 10
+}
+
+### Get current user's rating for a game
+GET {{host}}/api/games/{{game_id}}/rating/me
+Authorization: Bearer {{auth_token}}
+
+### Check if user has rated a game
+GET {{host}}/api/games/{{game_id}}/rating/check
+Authorization: Bearer {{auth_token}}
+
+### Get all ratings for a game (public)
+GET {{host}}/api/games/{{game_id}}/ratings
+
+### Get ratings with pagination
+GET {{host}}/api/games/{{game_id}}/ratings?page=1&limit=10
+
+### Get rating statistics for a game (public)
+GET {{host}}/api/games/{{game_id}}/rating/stats
+
+### Get all ratings by current user
+GET {{host}}/api/ratings/me
+Authorization: Bearer {{auth_token}}
+
+### Get recent ratings by current user
+GET {{host}}/api/ratings/me/recent?limit=5
+Authorization: Bearer {{auth_token}}
+
+### Delete user's rating
+DELETE {{host}}/api/games/{{game_id}}/rating
+Authorization: Bearer {{auth_token}}
+
+### Try rating with invalid score (should fail)
+POST {{host}}/api/games/{{game_id}}/rating
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "score": 11
+}
+
+### Try rating with score of 0 (should fail)
+POST {{host}}/api/games/{{game_id}}/rating
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "score": 0
+}
+
+### Try rating without authentication (should fail)
+POST {{host}}/api/games/{{game_id}}/rating
+Content-Type: {{contentType}}
+
+{
+  "score": 8
+}
 
 ###############################################
 # Lists (Coming Soon)
