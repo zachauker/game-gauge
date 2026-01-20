@@ -1,0 +1,292 @@
+### Game Gauge API - HTTP Requests
+### Use these to test your API endpoints directly in WebStorm
+### Click the ▶ icon next to each request to run it
+
+### Variables
+@host = http://localhost:3000
+@contentType = application/json
+
+###############################################
+# Health Check
+###############################################
+
+### Check API health
+GET {{host}}/health
+
+###############################################
+# Authentication
+###############################################
+
+### Register new user
+POST {{host}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "john.doe@example.com",
+  "username": "johndoe",
+  "password": "SecurePass123",
+  "firstName": "John",
+  "lastName": "Doe"
+}
+
+### Register another test user
+POST {{host}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "jane.smith@example.com",
+  "username": "janesmith",
+  "password": "SecurePass123",
+  "firstName": "Jane",
+  "lastName": "Smith"
+}
+
+### Login user (saves token to environment)
+POST {{host}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "john.doe@example.com",
+  "password": "SecurePass123"
+}
+
+> {%
+    // Save token to environment variable for subsequent requests
+    if (response.body.success && response.body.data.token) {
+        client.global.set("auth_token", response.body.data.token);
+        console.log("Token saved:", response.body.data.token);
+    }
+%}
+
+### Login with invalid credentials (should fail)
+POST {{host}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "john.doe@example.com",
+  "password": "WrongPassword"
+}
+
+### Get current user (requires authentication)
+GET {{host}}/api/auth/me
+Authorization: Bearer {{auth_token}}
+
+### Get current user without token (should fail)
+GET {{host}}/api/auth/me
+
+###############################################
+# Validation Tests
+###############################################
+
+### Register with invalid email
+POST {{host}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "not-an-email",
+  "username": "testuser",
+  "password": "Test1234"
+}
+
+### Register with short password
+POST {{host}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "username": "testuser",
+  "password": "short"
+}
+
+### Register with weak password (no uppercase)
+POST {{host}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "username": "testuser",
+  "password": "weakpassword123"
+}
+
+### Register with invalid username (special chars)
+POST {{host}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "username": "test@user!",
+  "password": "Test1234"
+}
+
+###############################################
+# Games
+###############################################
+
+### Get all games (public)
+GET {{host}}/api/games
+
+### Get games with pagination
+GET {{host}}/api/games?page=1&limit=10
+
+### Search games by title
+GET {{host}}/api/games?search=zelda
+
+### Filter by genre
+GET {{host}}/api/games?genre=RPG
+
+### Filter by platform
+GET {{host}}/api/games?platform=Nintendo Switch
+
+### Advanced filtering with sorting
+GET {{host}}/api/games?search=mario&genre=Platformer&sortBy=releaseDate&sortOrder=desc&limit=5
+
+### Get top-rated games
+GET {{host}}/api/games/top-rated?limit=10
+
+### Get recently added games
+GET {{host}}/api/games/recent?limit=10
+
+### Create game (requires authentication)
+POST {{host}}/api/games
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "title": "The Legend of Zelda: Breath of the Wild",
+  "description": "An open-world action-adventure game set in the kingdom of Hyrule. Players take on the role of Link as he awakens from a 100-year slumber to defeat Calamity Ganon and save Princess Zelda.",
+  "releaseDate": "2017-03-03",
+  "developer": "Nintendo EPD",
+  "publisher": "Nintendo",
+  "genres": ["Action", "Adventure", "Open World"],
+  "platforms": ["Nintendo Switch", "Wii U"],
+  "metacritic": 97
+}
+
+> {%
+    // Save game ID for subsequent requests
+    if (response.body.success && response.body.data.id) {
+        client.global.set("game_id", response.body.data.id);
+        client.global.set("game_slug", response.body.data.slug);
+        console.log("Game created:", response.body.data.title);
+        console.log("Game ID:", response.body.data.id);
+        console.log("Game slug:", response.body.data.slug);
+    }
+%}
+
+### Create another game
+POST {{host}}/api/games
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "title": "Elden Ring",
+  "description": "An action RPG set in the Lands Between, featuring intense combat and a vast open world to explore.",
+  "releaseDate": "2022-02-25",
+  "developer": "FromSoftware",
+  "publisher": "Bandai Namco",
+  "genres": ["Action RPG", "Dark Fantasy", "Open World"],
+  "platforms": ["PlayStation 5", "PlayStation 4", "Xbox Series X/S", "Xbox One", "PC"],
+  "metacritic": 96
+}
+
+### Create game without optional fields
+POST {{host}}/api/games
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "title": "Super Mario Bros.",
+  "genres": ["Platformer"],
+  "platforms": ["NES"]
+}
+
+### Get game by ID
+GET {{host}}/api/games/{{game_id}}
+
+### Get game by slug (SEO-friendly)
+GET {{host}}/api/games/slug/{{game_slug}}
+
+### Update game (requires authentication)
+PATCH {{host}}/api/games/{{game_id}}
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "description": "Updated description with more details about the game.",
+  "metacritic": 98
+}
+
+### Update game title (will regenerate slug)
+PATCH {{host}}/api/games/{{game_id}}
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "title": "The Legend of Zelda: Breath of the Wild - Updated"
+}
+
+### Delete game (requires authentication)
+DELETE {{host}}/api/games/{{game_id}}
+Authorization: Bearer {{auth_token}}
+
+###############################################
+# Reviews (Coming Soon)
+###############################################
+
+### Create review (TODO: implement endpoint)
+# POST {{host}}/api/games/{{game_id}}/reviews
+# Authorization: Bearer {{auth_token}}
+# Content-Type: {{contentType}}
+#
+# {
+#   "content": "An absolutely amazing game with incredible gameplay and beautiful graphics!"
+# }
+
+###############################################
+# Ratings (Coming Soon)
+###############################################
+
+### Rate game (TODO: implement endpoint)
+# POST {{host}}/api/games/{{game_id}}/rating
+# Authorization: Bearer {{auth_token}}
+# Content-Type: {{contentType}}
+#
+# {
+#   "score": 9
+# }
+
+###############################################
+# Lists (Coming Soon)
+###############################################
+
+### Create list (TODO: implement endpoint)
+# POST {{host}}/api/lists
+# Authorization: Bearer {{auth_token}}
+# Content-Type: {{contentType}}
+#
+# {
+#   "name": "My Wishlist",
+#   "description": "Games I want to play",
+#   "isPublic": false
+# }
+
+### Add game to list (TODO: implement endpoint)
+# POST {{host}}/api/lists/{{list_id}}/games
+# Authorization: Bearer {{auth_token}}
+# Content-Type: {{contentType}}
+#
+# {
+#   "gameId": "{{game_id}}",
+#   "notes": "Must play this summer!"
+# }
+
+###############################################
+# Notes
+###############################################
+
+# Tips:
+# 1. Click ▶ to run a request
+# 2. View response in bottom panel
+# 3. Token is automatically saved after login
+# 4. Use {{variable}} syntax for dynamic values
+# 5. Uncomment (remove #) to enable coming soon endpoints
