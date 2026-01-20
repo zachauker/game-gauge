@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String   // hashed
+  firstName String?
+  lastName  String?
+  bio       String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  reviews   Review[]
+  lists     GameList[]
+  ratings   Rating[]
+  
+  @@index([email])
+  @@index([username])
+}
+
+model Game {
+  id          String    @id @default(uuid())
+  title       String
+  slug        String    @unique
+  description String?   @db.Text
+  releaseDate DateTime?
+  developer   String?
+  publisher   String?
+  genres      String[]
+  platforms   String[]
+  coverImage  String?
+  
+  // External API metadata
+  igdbId      Int?      @unique
+  metacritic  Int?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  reviews     Review[]
+  ratings     Rating[]
+  listItems   GameListItem[]
+  
+  @@index([slug])
+  @@index([title])
+  @@index([igdbId])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  userId    String
+  gameId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, gameId])
+  @@index([gameId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  score     Int      // 1-10 scale
+  userId    String
+  gameId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, gameId])
+  @@index([gameId])
+  @@index([userId])
+}
+
+model GameList {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  isPublic    Boolean  @default(false)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       GameListItem[]
+  
+  @@index([userId])
+  @@index([isPublic])
+}
+
+model GameListItem {
+  id        String   @id @default(uuid())
+  listId    String
+  gameId    String
+  order     Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+  
+  list      GameList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  @@unique([listId, gameId])
+  @@index([listId])
+  @@index([order])
+}
