@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { gameController } from '../controllers/game.controller';
 import { ratingController } from '../controllers/rating.controller';
+import { reviewController } from '../controllers/review.controller';
 import { authenticate, optionalAuth } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -118,5 +119,38 @@ router.post('/:gameId/rating', authenticate, ratingController.rateGame.bind(rati
  * @access  Private
  */
 router.delete('/:gameId/rating', authenticate, ratingController.deleteRating.bind(ratingController));
+
+/**
+ * Review routes for specific games
+ */
+
+/**
+ * @route   GET /api/games/:gameId/reviews/check
+ * @desc    Check if current user has reviewed this game
+ * @access  Private
+ * @note    Must be before other review routes
+ */
+router.get('/:gameId/reviews/check', authenticate, reviewController.checkUserReview.bind(reviewController));
+
+/**
+ * @route   GET /api/games/:gameId/reviews/me
+ * @desc    Get current user's review for this game
+ * @access  Private
+ */
+router.get('/:gameId/reviews/me', authenticate, reviewController.getUserReview.bind(reviewController));
+
+/**
+ * @route   GET /api/games/:gameId/reviews
+ * @desc    Get all reviews for a game (paginated)
+ * @access  Public
+ */
+router.get('/:gameId/reviews', reviewController.getGameReviews.bind(reviewController));
+
+/**
+ * @route   POST /api/games/:gameId/reviews
+ * @desc    Create a review for a game
+ * @access  Private
+ */
+router.post('/:gameId/reviews', authenticate, reviewController.create.bind(reviewController));
 
 export default router;

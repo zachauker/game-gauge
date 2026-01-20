@@ -16,7 +16,7 @@ export class RatingController {
       const { gameId } = req.params;
       const data = ratingSchema.parse(req.body);
 
-      const result = await ratingService.rateGame(req.user.userId, gameId, data);
+      const result = await ratingService.rateGame(req.user.userId, gameId as string, data);
 
       res.status(200).json({
         success: true,
@@ -38,7 +38,7 @@ export class RatingController {
       }
 
       const { gameId } = req.params;
-      const rating = await ratingService.getUserRating(req.user.userId, gameId);
+      const rating = await ratingService.getUserRating(req.user.userId, gameId as string);
 
       res.status(200).json({
         success: true,
@@ -58,7 +58,7 @@ export class RatingController {
       const { gameId } = req.params;
       const query = getRatingsQuerySchema.parse(req.query);
 
-      const result = await ratingService.getGameRatings(gameId, query);
+      const result = await ratingService.getGameRatings(gameId as string, query);
 
       res.status(200).json({
         success: true,
@@ -104,7 +104,7 @@ export class RatingController {
       }
 
       const { gameId } = req.params;
-      const result = await ratingService.deleteRating(req.user.userId, gameId);
+      const result = await ratingService.deleteRating(req.user.userId, gameId as string);
 
       res.status(200).json({
         success: true,
@@ -122,7 +122,7 @@ export class RatingController {
   async getGameStats(req: Request, res: Response, next: NextFunction) {
     try {
       const { gameId } = req.params;
-      const stats = await ratingService.getGameStats(gameId);
+      const stats = await ratingService.getGameStats(gameId as string);
 
       res.status(200).json({
         success: true,
@@ -144,7 +144,7 @@ export class RatingController {
       }
 
       const { gameId } = req.params;
-      const hasRated = await ratingService.hasUserRated(req.user.userId, gameId);
+      const hasRated = await ratingService.hasUserRated(req.user.userId, gameId as string);
 
       res.status(200).json({
         success: true,

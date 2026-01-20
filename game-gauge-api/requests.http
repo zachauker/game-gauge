@@ -230,17 +230,119 @@ DELETE {{host}}/api/games/{{game_id}}
 Authorization: Bearer {{auth_token}}
 
 ###############################################
-# Reviews (Coming Soon)
+# Reviews
 ###############################################
 
-### Create review (TODO: implement endpoint)
-# POST {{host}}/api/games/{{game_id}}/reviews
-# Authorization: Bearer {{auth_token}}
-# Content-Type: {{contentType}}
-#
-# {
-#   "content": "An absolutely amazing game with incredible gameplay and beautiful graphics!"
-# }
+### Create a review for a game
+POST {{host}}/api/games/{{game_id}}/reviews
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "content": "This is an absolutely amazing game! The open world is breathtaking, the gameplay is innovative, and the story is captivating. Easily one of the best games I've ever played. Highly recommended for anyone who loves adventure games."
+}
+
+> {%
+    // Save review ID for subsequent requests
+    if (response.body.success && response.body.data.id) {
+        client.global.set("review_id", response.body.data.id);
+        console.log("Review created:", response.body.data.id);
+    }
+%}
+
+### Create another review with different content
+POST {{host}}/api/games/{{game_id}}/reviews
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "content": "Great game with beautiful graphics and engaging gameplay. The combat system is well-designed and the world is full of interesting things to discover."
+}
+
+### Get current user's review for a game
+GET {{host}}/api/games/{{game_id}}/reviews/me
+Authorization: Bearer {{auth_token}}
+
+### Check if user has reviewed a game
+GET {{host}}/api/games/{{game_id}}/reviews/check
+Authorization: Bearer {{auth_token}}
+
+### Get all reviews for a game (public)
+GET {{host}}/api/games/{{game_id}}/reviews
+
+### Get reviews with pagination and sorting
+GET {{host}}/api/games/{{game_id}}/reviews?page=1&limit=10&sortBy=createdAt&sortOrder=desc
+
+### Get a single review by ID
+GET {{host}}/api/reviews/{{review_id}}
+
+### Get all reviews by current user
+GET {{host}}/api/reviews/me
+Authorization: Bearer {{auth_token}}
+
+### Get recent reviews by current user
+GET {{host}}/api/reviews/me/recent?limit=5
+Authorization: Bearer {{auth_token}}
+
+### Get recent reviews across platform (public)
+GET {{host}}/api/reviews/recent?limit=10
+
+### Update a review (user's own only)
+PATCH {{host}}/api/reviews/{{review_id}}
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "content": "Updated review: After playing more, I have to say this game gets even better. The late-game content is incredible and there's so much replay value. Definitely a masterpiece!"
+}
+
+### Delete a review (user's own only)
+DELETE {{host}}/api/reviews/{{review_id}}
+Authorization: Bearer {{auth_token}}
+
+### Try creating review with too short content (should fail)
+POST {{host}}/api/games/{{game_id}}/reviews
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "content": "Too short"
+}
+
+### Try creating review with too long content (should fail)
+POST {{host}}/api/games/{{game_id}}/reviews
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "content": "Lorem ipsum dolor sit amet, consectetur adipiscing elit... (imagine 5001 characters here)"
+}
+
+### Try creating duplicate review (should fail)
+POST {{host}}/api/games/{{game_id}}/reviews
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "content": "This should fail because I already reviewed this game."
+}
+
+### Try updating someone else's review (should fail)
+PATCH {{host}}/api/reviews/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "content": "Trying to edit someone else's review"
+}
+
+### Try creating review without authentication (should fail)
+POST {{host}}/api/games/{{game_id}}/reviews
+Content-Type: {{contentType}}
+
+{
+  "content": "This should fail because I'm not authenticated."
+}
 
 ###############################################
 # Ratings

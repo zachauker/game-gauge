@@ -51,7 +51,7 @@ export class GameController {
   async findById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const game = await gameService.findById(id);
+      const game = await gameService.findById(id as string);
 
       res.status(200).json({
         success: true,
@@ -69,7 +69,7 @@ export class GameController {
   async findBySlug(req: Request, res: Response, next: NextFunction) {
     try {
       const { slug } = req.params;
-      const game = await gameService.findBySlug(slug);
+      const game = await gameService.findBySlug(slug as string);
 
       res.status(200).json({
         success: true,
@@ -88,7 +88,7 @@ export class GameController {
     try {
       const { id } = req.params;
       const data = updateGameSchema.parse(req.body);
-      const game = await gameService.update(id, data);
+      const game = await gameService.update(id as string, data);
 
       res.status(200).json({
         success: true,
@@ -106,7 +106,7 @@ export class GameController {
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const result = await gameService.delete(id);
+      const result = await gameService.delete(id as string);
 
       res.status(200).json({
         success: true,

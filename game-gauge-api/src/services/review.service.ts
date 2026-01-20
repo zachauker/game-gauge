@@ -1,0 +1,157 @@
+import { reviewRepository } from '../repositories/review.repository';
+import { gameRepository } from '../repositories/game.repository';
+import { NotFoundError, ConflictError, ForbiddenError } from '../utils/errors.util';
+import {
+  CreateReviewInput,
+  UpdateReviewInput,
+  GetReviewsQuery,
+} from '../validators/review.validator';
+
+export class ReviewService {
+  /**
+   * Create a new review for a game
+   */
+  async create(userId: string, gameId: string, data: CreateReviewInput) {
+    // Check if game exists
+    const game = await gameRepository.findById(gameId);
+    if (!game) {
+      throw new NotFoundError('Game not found');
+    }
+
+    // Check if user already reviewed this game
+    const existingReview = await reviewRepository.findByUserAndGame(userId, gameId);
+    if (existingReview) {
+      throw new ConflictError('You have already reviewed this game');
+    }
+
+    // Create review
+    const review = await reviewRepository.create({
+      content: data.content,
+      user: {
+        connect: { id: userId },
+      },
+      game: {
+        connect: { id: gameId },
+      },
+    });
+
+    // Return review with user info
+    return reviewRepository.findById(review.id);
+  }
+
+  /**
+   * Get a single review by ID
+   */
+  async findById(id: string) {
+    const review = await reviewRepository.findById(id);
+
+    if (!review) {
+      throw new NotFoundError('Review not found');
+    }
+
+    return review;
+  }
+
+  /**
+   * Get user's review for a specific game
+   */
+  async getUserReview(userId: string, gameId: string) {
+    const review = await reviewRepository.findByUserAndGame(userId, gameId);
+
+    if (!review) {
+      throw new NotFoundError('Review not found');
+    }
+
+    return review;
+  }
+
+  /**
+   * Get all reviews for a game
+   */
+  async getGameReviews(gameId: string, query: GetReviewsQuery) {
+    // Check if game exists
+    const game = await gameRepository.findById(gameId);
+    if (!game) {
+      throw new NotFoundError('Game not found');
+    }
+
+    const { page, limit, sortBy, sortOrder } = query;
+    return reviewRepository.findByGame(gameId, page, limit, sortBy, sortOrder);
+  }
+
+  /**
+   * Get all reviews by a user
+   */
+  async getUserReviews(userId: string, query: GetReviewsQuery) {
+    const { page, limit, sortBy, sortOrder } = query;
+    return reviewRepository.findByUser(userId, page, limit, sortBy, sortOrder);
+  }
+
+  /**
+   * Update a review
+   * Users can only update their own reviews
+   */
+  async update(reviewId: string, userId: string, data: UpdateReviewInput) {
+    // Check if review exists
+    const review = await reviewRepository.findById(reviewId);
+    if (!review) {
+      throw new NotFoundError('Review not found');
+    }
+
+    // Check ownership
+    if (review.userId !== userId) {
+      throw new ForbiddenError('You can only edit your own reviews');
+    }
+
+    // Update review
+    await reviewRepository.update(reviewId, data.content);
+
+    // Return updated review with user info
+    return reviewRepository.findById(reviewId);
+  }
+
+  /**
+   * Delete a review
+   * Users can only delete their own reviews
+   */
+  async delete(reviewId: string, userId: string) {
+    // Check if review exists
+    const review = await reviewRepository.findById(reviewId);
+    if (!review) {
+      throw new NotFoundError('Review not found');
+    }
+
+    // Check ownership
+    if (review.userId !== userId) {
+      throw new ForbiddenError('You can only delete your own reviews');
+    }
+
+    // Delete review
+    await reviewRepository.delete(reviewId);
+
+    return { message: 'Review deleted successfully' };
+  }
+
+  /**
+   * Check if user has reviewed a game
+   */
+  async hasUserReviewed(userId: string, gameId: string) {
+    return reviewRepository.hasUserReviewed(userId, gameId);
+  }
+
+  /**
+   * Get recent reviews by user (for profile)
+   */
+  async getRecentReviews(userId: string, limit: number = 10) {
+    return reviewRepository.getRecentByUser(userId, limit);
+  }
+
+  /**
+   * Get recent reviews across the platform (for activity feed)
+   */
+  async getRecentPlatformReviews(limit: number = 10) {
+    return reviewRepository.getRecentReviews(limit);
+  }
+}
+
+export const reviewService = new ReviewService();
