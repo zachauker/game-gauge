@@ -109,7 +109,9 @@ export class IGDBController {
    */
   async getPopular(req: Request, res: Response, next: NextFunction) {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : 20;
 
       const games = await igdbService.getPopularGames(limit);
 
@@ -128,7 +130,9 @@ export class IGDBController {
    */
   async getRecent(req: Request, res: Response, next: NextFunction) {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : 20;
 
       const games = await igdbService.getRecentGames(limit);
 

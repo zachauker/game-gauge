@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { gameController } from '../controllers/game.controller';
 import { ratingController } from '../controllers/rating.controller';
 import { reviewController } from '../controllers/review.controller';
+import { listController } from '../controllers/list.controller';
 import { authenticate, optionalAuth } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -154,3 +155,15 @@ router.get('/:gameId/reviews', reviewController.getGameReviews.bind(reviewContro
 router.post('/:gameId/reviews', authenticate, reviewController.create.bind(reviewController));
 
 export default router;
+
+/**
+ * Lists routes for games
+ */
+
+/**
+ * @route   GET /api/games/:gameId/lists
+ * @desc    Get lists containing this game
+ * @access  Public
+ */
+router.get('/:gameId/lists', listController.getListsContainingGame.bind(listController));
+

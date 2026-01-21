@@ -520,3 +520,134 @@ Content-Type: {{contentType}}
 ### Refresh game data from IGDB (requires auth)
 POST {{host}}/api/igdb/refresh/{{imported_game_id}}
 Authorization: Bearer {{auth_token}}
+
+###############################################
+# Lists
+###############################################
+
+### Create a new list
+POST {{host}}/api/lists
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "My Wishlist",
+  "description": "Games I want to play",
+  "isPublic": true
+}
+
+> {%
+    if (response.body.success && response.body.data.id) {
+        client.global.set("list_id", response.body.data.id);
+        console.log("List created:", response.body.data.id);
+    }
+%}
+
+### Create another list (private)
+POST {{host}}/api/lists
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Currently Playing",
+  "description": "Games I'm actively playing right now",
+  "isPublic": false
+}
+
+### Create favorites list
+POST {{host}}/api/lists
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "All-Time Favorites",
+  "description": "My favorite games of all time"
+}
+
+### Get all my lists
+GET {{host}}/api/lists/me
+Authorization: Bearer {{auth_token}}
+
+### Get single list by ID
+GET {{host}}/api/lists/{{list_id}}
+Authorization: Bearer {{auth_token}}
+
+### Get public lists (discovery)
+GET {{host}}/api/lists/public?page=1&limit=10
+
+### Get popular lists
+GET {{host}}/api/lists/popular?limit=10
+
+### Update a list
+PATCH {{host}}/api/lists/{{list_id}}
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "My Updated Wishlist",
+  "description": "Updated description"
+}
+
+### Add game to list
+POST {{host}}/api/lists/{{list_id}}/games
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "gameId": "{{game_id}}",
+  "notes": "Can't wait to play this!"
+}
+
+### Add another game to list (use imported game)
+POST {{host}}/api/lists/{{list_id}}/games
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "gameId": "{{imported_game_id}}"
+}
+
+### Update list item notes
+PATCH {{host}}/api/lists/{{list_id}}/games/{{game_id}}
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "notes": "Updated notes - priority game!"
+}
+
+### Reorder list items
+POST {{host}}/api/lists/{{list_id}}/reorder
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "items": [
+    { "id": "item-uuid-1", "order": 0 },
+    { "id": "item-uuid-2", "order": 1 },
+    { "id": "item-uuid-3", "order": 2 }
+  ]
+}
+
+### Remove game from list
+DELETE {{host}}/api/lists/{{list_id}}/games/{{game_id}}
+Authorization: Bearer {{auth_token}}
+
+### Get lists containing a specific game
+GET {{host}}/api/games/{{game_id}}/lists
+
+### Delete a list
+DELETE {{host}}/api/lists/{{list_id}}
+Authorization: Bearer {{auth_token}}
+
+### Try adding duplicate game (should fail)
+POST {{host}}/api/lists/{{list_id}}/games
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "gameId": "{{game_id}}"
+}
+
+### Try accessing private list without auth (should fail)
+GET {{host}}/api/lists/{{list_id}}

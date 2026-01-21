@@ -108,13 +108,17 @@ export class IGDBService {
     }
 
     try {
-      const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
-        params: {
-          client_id: env.IGDB_CLIENT_ID,
-          client_secret: env.IGDB_CLIENT_SECRET,
-          grant_type: 'client_credentials',
-        },
-      });
+      const response = await axios.post(
+        'https://id.twitch.tv/oauth2/token',
+        null,
+        {
+          params: {
+            client_id: env.IGDB_CLIENT_ID,
+            client_secret: env.IGDB_CLIENT_SECRET,
+            grant_type: 'client_credentials',
+          },
+        }
+      );
 
       this.accessToken = response.data.access_token;
       // Token expires in seconds, convert to milliseconds and add buffer
@@ -330,7 +334,9 @@ export class IGDBService {
    */
   extractDevelopers(game: IGDBGame): string[] {
     if (!game.involved_companies) return [];
-    return game.involved_companies.filter((ic) => ic.developer).map((ic) => ic.company.name);
+    return game.involved_companies
+      .filter((ic) => ic.developer)
+      .map((ic) => ic.company.name);
   }
 
   /**
@@ -338,7 +344,9 @@ export class IGDBService {
    */
   extractPublishers(game: IGDBGame): string[] {
     if (!game.involved_companies) return [];
-    return game.involved_companies.filter((ic) => ic.publisher).map((ic) => ic.company.name);
+    return game.involved_companies
+      .filter((ic) => ic.publisher)
+      .map((ic) => ic.company.name);
   }
 }
 
