@@ -465,3 +465,58 @@ Content-Type: {{contentType}}
 # 3. Token is automatically saved after login
 # 4. Use {{variable}} syntax for dynamic values
 # 5. Uncomment (remove #) to enable coming soon endpoints
+
+###############################################
+# IGDB Integration
+###############################################
+
+### Search for games in IGDB
+GET {{host}}/api/igdb/search?q=zelda&limit=10
+
+### Search for specific game
+GET {{host}}/api/igdb/search?q=elden%20ring
+
+### Get popular games from IGDB
+GET {{host}}/api/igdb/popular?limit=20
+
+### Get recently released games from IGDB
+GET {{host}}/api/igdb/recent?limit=20
+
+### Get game details by IGDB ID (The Legend of Zelda: Breath of the Wild = 7346)
+GET {{host}}/api/igdb/games/7346
+
+### Get game details (Elden Ring = 119277)
+GET {{host}}/api/igdb/games/119277
+
+### Get game details (Cyberpunk 2077 = 1877)
+GET {{host}}/api/igdb/games/1877
+
+### Import game from IGDB to our database (requires auth)
+POST {{host}}/api/igdb/import
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "igdbId": 7346
+}
+
+> {%
+    // Save our internal game ID
+    if (response.body.success && response.body.data.id) {
+        client.global.set("imported_game_id", response.body.data.id);
+        console.log("Game imported, internal ID:", response.body.data.id);
+    }
+%}
+
+### Import another game (Elden Ring)
+POST {{host}}/api/igdb/import
+Authorization: Bearer {{auth_token}}
+Content-Type: {{contentType}}
+
+{
+  "igdbId": 119277
+}
+
+### Refresh game data from IGDB (requires auth)
+POST {{host}}/api/igdb/refresh/{{imported_game_id}}
+Authorization: Bearer {{auth_token}}

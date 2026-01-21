@@ -12,8 +12,8 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   REDIS_URL: z.string().optional(),
-  IGDB_CLIENT_ID: z.string().optional(),
-  IGDB_CLIENT_SECRET: z.string().optional(),
+  IGDB_CLIENT_ID: z.string().min(1, 'IGDB Client ID is required'),
+  IGDB_CLIENT_SECRET: z.string().min(1, 'IGDB Client Secret is required'),
 });
 
 const parseEnv = () => {
