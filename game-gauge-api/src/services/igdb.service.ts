@@ -108,17 +108,13 @@ export class IGDBService {
     }
 
     try {
-      const response = await axios.post(
-        'https://id.twitch.tv/oauth2/token',
-        null,
-        {
-          params: {
-            client_id: env.IGDB_CLIENT_ID,
-            client_secret: env.IGDB_CLIENT_SECRET,
-            grant_type: 'client_credentials',
-          },
-        }
-      );
+      const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
+        params: {
+          client_id: env.IGDB_CLIENT_ID,
+          client_secret: env.IGDB_CLIENT_SECRET,
+          grant_type: 'client_credentials',
+        },
+      });
 
       this.accessToken = response.data.access_token;
       // Token expires in seconds, convert to milliseconds and add buffer
@@ -162,7 +158,6 @@ export class IGDBService {
       search "${query}";
       fields name, cover.url, cover.image_id, first_release_date, rating, platforms.name, platforms.abbreviation;
       limit ${limit};
-      where category = 0 | category = 4 | category = 8 | category = 9;
     `;
 
     const results = await this.request<IGDBGame[]>('/games', apicalypseQuery.trim());
@@ -261,8 +256,8 @@ export class IGDBService {
   async getPopularGames(limit: number = 20): Promise<IGDBSearchResult[]> {
     const apicalypseQuery = `
       fields name, cover.url, cover.image_id, first_release_date, rating, platforms.name, platforms.abbreviation;
-      where rating != null & rating_count > 10 & category = 0;
-      sort rating desc;
+      where total_rating_count > 50;
+      sort total_rating desc;
       limit ${limit};
     `;
 
@@ -288,11 +283,11 @@ export class IGDBService {
    */
   async getRecentGames(limit: number = 20): Promise<IGDBSearchResult[]> {
     const now = Math.floor(Date.now() / 1000);
-    const threeMonthsAgo = now - 7776000; // 90 days in seconds
+    const sixMonthsAgo = now - 15552000; // 180 days in seconds
 
     const apicalypseQuery = `
       fields name, cover.url, cover.image_id, first_release_date, rating, platforms.name, platforms.abbreviation;
-      where first_release_date > ${threeMonthsAgo} & first_release_date < ${now} & category = 0;
+      where first_release_date >= ${sixMonthsAgo} & first_release_date <= ${now};
       sort first_release_date desc;
       limit ${limit};
     `;
@@ -335,9 +330,7 @@ export class IGDBService {
    */
   extractDevelopers(game: IGDBGame): string[] {
     if (!game.involved_companies) return [];
-    return game.involved_companies
-      .filter((ic) => ic.developer)
-      .map((ic) => ic.company.name);
+    return game.involved_companies.filter((ic) => ic.developer).map((ic) => ic.company.name);
   }
 
   /**
@@ -345,9 +338,7 @@ export class IGDBService {
    */
   extractPublishers(game: IGDBGame): string[] {
     if (!game.involved_companies) return [];
-    return game.involved_companies
-      .filter((ic) => ic.publisher)
-      .map((ic) => ic.company.name);
+    return game.involved_companies.filter((ic) => ic.publisher).map((ic) => ic.company.name);
   }
 }
 

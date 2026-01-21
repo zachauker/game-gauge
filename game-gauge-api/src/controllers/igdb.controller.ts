@@ -79,7 +79,7 @@ export class IGDBController {
         },
       });
     } catch (error) {
-      next(error);=
+      next(error);
     }
   }
 
