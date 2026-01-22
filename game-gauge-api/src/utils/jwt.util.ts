@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import { sign, verify } from 'jsonwebtoken';
 import { env } from '../config/env';
 
 export interface JwtPayload {
@@ -7,14 +7,14 @@ export interface JwtPayload {
 }
 
 export const generateToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+  return sign(payload, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN as string | number,
   });
 };
 
 export const verifyToken = (token: string): JwtPayload => {
   try {
-    return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    return verify(token, env.JWT_SECRET) as JwtPayload;
   } catch (error) {
     throw new Error('Invalid token');
   }
