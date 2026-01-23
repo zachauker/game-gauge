@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import { Game, Prisma } from '@prisma/client';
+import { ListGamesQuery } from '../validators/game.validator';
 
 export interface PaginationOptions {
   page: number;
@@ -80,10 +81,16 @@ export class GameRepository {
   /**
    * Find all games with pagination, search, and filtering
    */
-  async findAll(
-    options: PaginationOptions & SearchOptions
-  ): Promise<PaginatedResult<Game>> {
-    const { page, limit, search, genre, platform, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+  async findAll(options: ListGamesQuery): Promise<PaginatedResult<Game>> {
+    const {
+      page,
+      limit,
+      search,
+      genre,
+      platform,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = options;
 
     // Build where clause for filtering
     const where: Prisma.GameWhereInput = {};
@@ -182,7 +189,7 @@ export class GameRepository {
    */
   async isSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
     const where: Prisma.GameWhereInput = { slug };
-    
+
     // Exclude current game ID when updating
     if (excludeId) {
       where.id = { not: excludeId };
@@ -222,9 +229,7 @@ export class GameRepository {
       .map((game) => {
         const ratings = game.ratings;
         const avgRating =
-          ratings.length > 0
-            ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length
-            : 0;
+          ratings.length > 0 ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length : 0;
 
         // Remove the ratings array from the result (we don't need to send it to client)
         const { ratings: _, ...gameWithoutRatings } = game;

@@ -24,8 +24,16 @@ export class GameService {
     }
 
     return await gameRepository.create({
-      ...data,
+      title: data.title,
+      description: data.description,
       slug,
+      releaseDate: data.releaseDate,
+      developer: data.developer,
+      publisher: data.publisher,
+      genres: data.genres,
+      platforms: data.platforms,
+      coverImage: data.coverImage,
+      metacritic: data.metacritic,
     });
   }
 
