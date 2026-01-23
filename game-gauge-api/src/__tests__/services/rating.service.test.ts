@@ -11,11 +11,12 @@ describe('RatingService', () => {
   });
 
   describe('rateGame', () => {
-    const ratingData = { score: 8 };
+    const ratingData = { gameId: testGame.id, score: 8 };
 
     it('should create or update a rating successfully', async () => {
       // Arrange
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(testGame);
+      (prisma.rating.findMany as jest.Mock).mockResolvedValue([testRating]);
       (prisma.rating.upsert as jest.Mock).mockResolvedValue(testRating);
       (prisma.rating.aggregate as jest.Mock).mockResolvedValue({
         _avg: { score: 8.5 },
@@ -32,6 +33,9 @@ describe('RatingService', () => {
 
       // Assert
       expect(prisma.game.findUnique).toHaveBeenCalledWith({
+        include: {
+          _count: { select: { ratings: true, reviews: true } },
+        },
         where: { id: testGame.id },
       });
       expect(prisma.rating.upsert).toHaveBeenCalled();
@@ -53,16 +57,18 @@ describe('RatingService', () => {
   describe('getUserRating', () => {
     it('should return user rating for game', async () => {
       // Arrange
-      (prisma.rating.findFirst as jest.Mock).mockResolvedValue(testRating);
+      (prisma.rating.findUnique as jest.Mock).mockResolvedValue(testRating);
 
       // Act
       const result = await ratingService.getUserRating(testUser.id, testGame.id);
 
       // Assert
-      expect(prisma.rating.findFirst).toHaveBeenCalledWith({
+      expect(prisma.rating.findUnique).toHaveBeenCalledWith({
         where: {
-          userId: testUser.id,
-          gameId: testGame.id,
+          userId_gameId: {
+            userId: testUser.id,
+            gameId: testGame.id,
+          },
         },
       });
       expect(result).toEqual(testRating);
@@ -70,7 +76,7 @@ describe('RatingService', () => {
 
     it('should throw NotFoundError if rating not found', async () => {
       // Arrange
-      (prisma.rating.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.rating.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
       await expect(ratingService.getUserRating(testUser.id, testGame.id)).rejects.toThrow(
@@ -90,11 +96,14 @@ describe('RatingService', () => {
       const result = await ratingService.getGameRatings(testGame.id, { page: 1, limit: 10 });
 
       // Assert
+      expect(result).toHaveProperty('data');
       expect(prisma.game.findUnique).toHaveBeenCalledWith({
+        include: {
+          _count: { select: { ratings: true, reviews: true } },
+        },
         where: { id: testGame.id },
       });
       expect(prisma.rating.findMany).toHaveBeenCalled();
-      expect(result).toHaveProperty('ratings');
     });
 
     it('should throw NotFoundError if game does not exist', async () => {
@@ -116,17 +125,17 @@ describe('RatingService', () => {
 
       // Act
       const result = await ratingService.getUserRatings(testUser.id, { page: 1, limit: 10 });
-      expect(result).toHaveProperty('ratings');
 
       // Assert
       expect(prisma.rating.findMany).toHaveBeenCalled();
+      expect(result).toHaveProperty('data');
     });
   });
 
   describe('deleteRating', () => {
     it('should delete rating successfully', async () => {
       // Arrange
-      (prisma.rating.findFirst as jest.Mock).mockResolvedValue(testRating);
+      (prisma.rating.findUnique as jest.Mock).mockResolvedValue(testRating);
       (prisma.rating.delete as jest.Mock).mockResolvedValue(testRating);
       (prisma.rating.aggregate as jest.Mock).mockResolvedValue({
         _avg: { score: 8.5 },
@@ -138,10 +147,12 @@ describe('RatingService', () => {
       const result = await ratingService.deleteRating(testUser.id, testGame.id);
 
       // Assert
-      expect(prisma.rating.findFirst).toHaveBeenCalledWith({
+      expect(prisma.rating.findUnique).toHaveBeenCalledWith({
         where: {
-          userId: testUser.id,
-          gameId: testGame.id,
+          userId_gameId: {
+            userId: testUser.id,
+            gameId: testGame.id,
+          },
         },
       });
       expect(prisma.rating.delete).toHaveBeenCalled();
@@ -151,7 +162,7 @@ describe('RatingService', () => {
 
     it('should throw NotFoundError if rating does not exist', async () => {
       // Arrange
-      (prisma.rating.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.rating.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
       await expect(ratingService.deleteRating(testUser.id, testGame.id)).rejects.toThrow(
@@ -179,6 +190,9 @@ describe('RatingService', () => {
 
       // Assert
       expect(prisma.game.findUnique).toHaveBeenCalledWith({
+        include: {
+          _count: { select: { ratings: true, reviews: true } },
+        },
         where: { id: testGame.id },
       });
       expect(result).toHaveProperty('averageScore');
@@ -209,7 +223,7 @@ describe('RatingService', () => {
 
     it('should return false if user has not rated game', async () => {
       // Arrange
-      (prisma.rating.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.rating.count as jest.Mock).mockResolvedValue(0);
 
       // Act
       const result = await ratingService.hasUserRated(testUser.id, testGame.id);
@@ -229,10 +243,18 @@ describe('RatingService', () => {
 
       // Assert
       expect(prisma.rating.findMany).toHaveBeenCalledWith({
+        include: {
+          user: {
+            select: {
+              avatar: true,
+              id: true,
+              username: true,
+            },
+          },
+        },
         where: { userId: testUser.id },
         take: 10,
         orderBy: { createdAt: 'desc' },
-        include: { game: true },
       });
       expect(result).toEqual([testRating]);
     });

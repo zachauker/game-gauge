@@ -22,7 +22,10 @@ export class AuthService {
 
     // Create user
     const user = await userRepository.create({
-      ...data,
+      email: data.email,
+      username: data.username,
+      firstName: data.firstName,
+      lastName: data.lastName,
       password: hashedPassword,
     });
 

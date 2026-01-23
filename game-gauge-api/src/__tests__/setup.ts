@@ -9,6 +9,7 @@ jest.mock('../config/database', () => ({
       delete: jest.fn(),
     },
     game: {
+      exists: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
@@ -26,6 +27,7 @@ jest.mock('../config/database', () => ({
       groupBy: jest.fn(),
       count: jest.fn(),
       aggregate: jest.fn(),
+      upsert: jest.fn(),
     },
     review: {
       findUnique: jest.fn(),
@@ -42,7 +44,6 @@ jest.mock('../config/database', () => ({
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
-      aggregate: jest.fn(),
     },
     gameListItem: {
       findUnique: jest.fn(),

@@ -103,10 +103,10 @@ describe('ListService', () => {
         { page: 1, limit: 10 },
         testUser.id
       );
-      expect(result).toEqual(mockResult);
 
       // Assert
       expect(prisma.gameList.findMany).toHaveBeenCalled();
+      expect(result).toEqual(mockResult);
     });
 
     it('should filter private lists for non-owner', async () => {
@@ -146,10 +146,10 @@ describe('ListService', () => {
 
       // Act
       const result = await listService.getPublicLists({ page: 1, limit: 10 });
-      expect(result.data).toHaveLength(1);
 
       // Assert
       expect(prisma.gameList.findMany).toHaveBeenCalled();
+      expect(result.data).toHaveLength(1);
     });
   });
 
@@ -231,19 +231,16 @@ describe('ListService', () => {
       // Arrange
       (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(testList);
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(testGame);
-      (prisma.gameListItem.findFirst as jest.Mock).mockResolvedValue(null);
-      // Mock aggregate to return max order
+      (prisma.gameListItem.count as jest.Mock).mockResolvedValue(0); // Game not in list
       (prisma.gameListItem.aggregate as jest.Mock).mockResolvedValue({
         _max: { order: 4 },
       });
-
-      // Mock create with next order value
       (prisma.gameListItem.create as jest.Mock).mockResolvedValue({
         id: 'item-id',
         listId: testList.id,
         gameId: testGame.id,
         notes: addGameData.notes,
-        order: 5, // ✅ Next order is 5 (max 4 + 1)
+        order: 5,
         addedAt: new Date(),
       });
 
@@ -253,6 +250,16 @@ describe('ListService', () => {
       // Assert
       expect(prisma.gameList.findUnique).toHaveBeenCalled();
       expect(prisma.game.findUnique).toHaveBeenCalled();
+      expect(prisma.gameListItem.count).toHaveBeenCalledWith({
+        where: {
+          listId: testList.id,
+          gameId: addGameData.gameId,
+        },
+      });
+      expect(prisma.gameListItem.aggregate).toHaveBeenCalledWith({
+        where: { listId: testList.id },
+        _max: { order: true },
+      });
       expect(prisma.gameListItem.create).toHaveBeenCalled();
       expect(result).toHaveProperty('gameId', testGame.id);
     });
@@ -282,12 +289,24 @@ describe('ListService', () => {
       // Arrange
       (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(testList);
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(testGame);
-      (prisma.gameListItem.findFirst as jest.Mock).mockResolvedValue({ id: 'existing-item' });
+      (prisma.gameListItem.count as jest.Mock).mockResolvedValue(1); // Game already in list
 
       // Act & Assert
       await expect(
         listService.addGameToList(testList.id, testUser.id, addGameData)
       ).rejects.toThrow(ConflictError);
+
+      // Verify it checked for existing game
+      expect(prisma.gameListItem.count).toHaveBeenCalledWith({
+        where: {
+          listId: testList.id,
+          gameId: addGameData.gameId,
+        },
+      });
+
+      // Verify it didn't try to create
+      expect(prisma.gameListItem.aggregate).not.toHaveBeenCalled();
+      expect(prisma.gameListItem.create).not.toHaveBeenCalled();
     });
   });
 
@@ -295,13 +314,19 @@ describe('ListService', () => {
     it('should remove game from list successfully', async () => {
       // Arrange
       (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(testList);
-      (prisma.gameListItem.findFirst as jest.Mock).mockResolvedValue({ id: 'item-id' });
-      (prisma.gameListItem.delete as jest.Mock).mockResolvedValue({ id: 'item-id' });
+      (prisma.gameListItem.count as jest.Mock).mockResolvedValue(1); // Game is in list
+      (prisma.gameListItem.delete as jest.Mock).mockResolvedValue({ count: 1 });
 
       // Act
       const result = await listService.removeGameFromList(testList.id, testGame.id, testUser.id);
 
       // Assert
+      expect(prisma.gameListItem.count).toHaveBeenCalledWith({
+        where: {
+          listId: testList.id,
+          gameId: testGame.id,
+        },
+      });
       expect(prisma.gameListItem.delete).toHaveBeenCalled();
       expect(result).toHaveProperty('message');
     });
@@ -319,7 +344,7 @@ describe('ListService', () => {
     it('should throw NotFoundError if game not in list', async () => {
       // Arrange
       (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(testList);
-      (prisma.gameListItem.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.gameListItem.count as jest.Mock).mockResolvedValue(0); // Game not in list
 
       // Act & Assert
       await expect(
@@ -336,11 +361,11 @@ describe('ListService', () => {
 
       // Act
       const result = await listService.getListsContainingGame(testGame.id);
-      expect(result).toEqual([testList]);
 
       // Assert
       expect(prisma.game.findUnique).toHaveBeenCalled();
       expect(prisma.gameList.findMany).toHaveBeenCalled();
+      expect(result).toEqual([testList]);
     });
 
     it('should throw NotFoundError if game does not exist', async () => {

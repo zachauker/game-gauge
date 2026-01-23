@@ -65,6 +65,9 @@ describe('GameService', () => {
 
       // Assert
       expect(prisma.game.findUnique).toHaveBeenCalledWith({
+        include: {
+          _count: { select: { ratings: true, reviews: true } },
+        },
         where: { id: testGame.id },
       });
       expect(result).toEqual(testGame);
@@ -89,6 +92,11 @@ describe('GameService', () => {
 
       // Assert
       expect(prisma.game.findUnique).toHaveBeenCalledWith({
+        include: {
+          _count: {
+            select: { ratings: true, reviews: true },
+          },
+        },
         where: { slug: testGame.slug },
       });
       expect(result).toEqual(testGame);
@@ -121,15 +129,13 @@ describe('GameService', () => {
         page: 1,
         limit: 10,
         sortBy: 'title',
-        genre: 'Action',
         sortOrder: 'asc',
-        platform: 'PC',
       });
 
       // Assert
       expect(prisma.game.findMany).toHaveBeenCalled();
-      expect(result).toHaveProperty('games');
-      expect(result).toHaveProperty('total');
+      expect(result).toHaveProperty('data');
+      expect(result.data[0]).toHaveProperty('developer');
     });
 
     it('should apply filters', async () => {
@@ -144,8 +150,8 @@ describe('GameService', () => {
         search: 'test',
         platform: 'PC',
         genre: 'Action',
-        sortOrder: 'asc',
         sortBy: 'title',
+        sortOrder: 'asc',
       });
 
       // Assert
@@ -170,6 +176,14 @@ describe('GameService', () => {
 
       // Assert
       expect(prisma.game.findUnique).toHaveBeenCalledWith({
+        include: {
+          _count: {
+            select: {
+              ratings: true,
+              reviews: true,
+            },
+          },
+        },
         where: { id: testGame.id },
       });
       expect(prisma.game.update).toHaveBeenCalled();
@@ -188,24 +202,23 @@ describe('GameService', () => {
   describe('delete', () => {
     it('should delete game successfully', async () => {
       // Arrange
-      (prisma.game.findUnique as jest.Mock).mockResolvedValue(testGame);
+      (prisma.game.count as jest.Mock).mockResolvedValue(1);
       (prisma.game.delete as jest.Mock).mockResolvedValue(testGame);
 
       // Act
       await gameService.delete(testGame.id);
 
       // Assert
-      expect(prisma.game.findUnique).toHaveBeenCalledWith({
-        where: { id: testGame.id },
-      });
       expect(prisma.game.delete).toHaveBeenCalledWith({
-        where: { id: testGame.id },
+        where: {
+          id: testGame.id,
+        },
       });
     });
 
     it('should throw NotFoundError if game does not exist', async () => {
       // Arrange
-      (prisma.game.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.game.count as jest.Mock).mockResolvedValue(0);
 
       // Act & Assert
       await expect(gameService.delete('invalid-id')).rejects.toThrow(NotFoundError);

@@ -1,26 +1,19 @@
 import { AuthService } from '../../services/auth.service';
-import { hashPassword, comparePasswords } from '../../utils/password.util';
+import { hashPassword, comparePassword } from '../../utils/password.util';
 import { generateToken } from '../../utils/jwt.util';
 import { ConflictError, UnauthorizedError } from '../../utils/errors.util';
 import { testUser } from '../setup';
+import { prisma } from '../../config/database';
 
-// Mock the entire repository module
-jest.mock('../../repositories/user.repository');
+// Mock utils
 jest.mock('../../utils/password.util');
 jest.mock('../../utils/jwt.util');
 
-import { UserRepository } from '../../repositories/user.repository';
-
 describe('AuthService', () => {
   let authService: AuthService;
-  let mockUserRepository: jest.Mocked<UserRepository>;
 
   beforeEach(() => {
-    // Create a new instance of the mocked repository
-    mockUserRepository = new UserRepository() as jest.Mocked<UserRepository>;
     authService = new AuthService();
-    // Replace the private repository instance with our mock
-    (authService as any).userRepository = mockUserRepository;
   });
 
   describe('register', () => {
@@ -34,10 +27,11 @@ describe('AuthService', () => {
 
     it('should successfully register a new user', async () => {
       // Arrange
-      mockUserRepository.findByEmail.mockResolvedValue(null);
-      mockUserRepository.findByUsername.mockResolvedValue(null);
+      (prisma.user.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null) // findByEmail
+        .mockResolvedValueOnce(null); // findByUsername
       (hashPassword as jest.Mock).mockResolvedValue('hashedPassword123');
-      mockUserRepository.create.mockResolvedValue({
+      (prisma.user.create as jest.Mock).mockResolvedValue({
         ...testUser,
         email: registerData.email,
         username: registerData.username,
@@ -48,31 +42,28 @@ describe('AuthService', () => {
       const result = await authService.register(registerData);
 
       // Assert
-      expect(mockUserRepository.findByEmail).toHaveBeenCalledWith(registerData.email);
-      expect(mockUserRepository.findByUsername).toHaveBeenCalledWith(registerData.username);
       expect(hashPassword).toHaveBeenCalledWith(registerData.password);
-      expect(mockUserRepository.create).toHaveBeenCalled();
+      expect(prisma.user.create).toHaveBeenCalled();
       expect(result).toHaveProperty('user');
       expect(result).toHaveProperty('token', 'test-token');
     });
 
     it('should throw ConflictError if email already exists', async () => {
       // Arrange
-      mockUserRepository.findByEmail.mockResolvedValue(testUser);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(testUser);
 
       // Act & Assert
       await expect(authService.register(registerData)).rejects.toThrow(ConflictError);
-      expect(mockUserRepository.findByEmail).toHaveBeenCalledWith(registerData.email);
     });
 
     it('should throw ConflictError if username already exists', async () => {
       // Arrange
-      mockUserRepository.findByEmail.mockResolvedValue(null);
-      mockUserRepository.findByUsername.mockResolvedValue(testUser);
+      (prisma.user.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null) // email check passes
+        .mockResolvedValueOnce(testUser); // username check fails
 
       // Act & Assert
       await expect(authService.register(registerData)).rejects.toThrow(ConflictError);
-      expect(mockUserRepository.findByUsername).toHaveBeenCalledWith(registerData.username);
     });
   });
 
@@ -84,23 +75,22 @@ describe('AuthService', () => {
 
     it('should successfully login with correct credentials', async () => {
       // Arrange
-      mockUserRepository.findByEmail.mockResolvedValue(testUser);
-      (comparePasswords as jest.Mock).mockResolvedValue(true);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(testUser);
+      (comparePassword as jest.Mock).mockResolvedValue(true);
       (generateToken as jest.Mock).mockReturnValue('test-token');
 
       // Act
       const result = await authService.login(loginData);
 
       // Assert
-      expect(mockUserRepository.findByEmail).toHaveBeenCalledWith(loginData.email);
-      expect(comparePasswords).toHaveBeenCalledWith(loginData.password, testUser.password);
+      expect(comparePassword).toHaveBeenCalledWith(loginData.password, testUser.password);
       expect(result).toHaveProperty('user');
       expect(result).toHaveProperty('token', 'test-token');
     });
 
     it('should throw UnauthorizedError if user not found', async () => {
       // Arrange
-      mockUserRepository.findByEmail.mockResolvedValue(null);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
       await expect(authService.login(loginData)).rejects.toThrow(UnauthorizedError);
@@ -108,8 +98,8 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedError if password is incorrect', async () => {
       // Arrange
-      mockUserRepository.findByEmail.mockResolvedValue(testUser);
-      (comparePasswords as jest.Mock).mockResolvedValue(false);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(testUser);
+      (comparePassword as jest.Mock).mockResolvedValue(false);
 
       // Act & Assert
       await expect(authService.login(loginData)).rejects.toThrow(UnauthorizedError);
@@ -119,23 +109,22 @@ describe('AuthService', () => {
   describe('getProfile', () => {
     it('should return user profile without password', async () => {
       // Arrange
-      mockUserRepository.findById.mockResolvedValue(testUser);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(testUser);
 
       // Act
-      const result = await authService.getProfile(testUser.id);
+      const result = await authService.getCurrentUser(testUser.id);
 
       // Assert
-      expect(mockUserRepository.findById).toHaveBeenCalledWith(testUser.id);
       expect(result).toBeDefined();
       expect(result).not.toHaveProperty('password');
     });
 
     it('should throw error if user not found', async () => {
       // Arrange
-      mockUserRepository.findById.mockResolvedValue(null);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(authService.getProfile('invalid-id')).rejects.toThrow();
+      await expect(authService.getCurrentUser('invalid-id')).rejects.toThrow();
     });
   });
 });

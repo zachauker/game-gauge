@@ -82,11 +82,7 @@ export class ListRepository {
   /**
    * Find lists by user ID
    */
-  async findByUser(
-    userId: string,
-    page: number,
-    limit: number
-  ): Promise<PaginatedLists> {
+  async findByUser(userId: string, page: number, limit: number): Promise<PaginatedLists> {
     const skip = (page - 1) * limit;
 
     const [lists, total] = await Promise.all([
@@ -187,11 +183,7 @@ export class ListRepository {
   /**
    * Add game to list
    */
-  async addGameToList(
-    listId: string,
-    gameId: string,
-    notes?: string
-  ): Promise<GameListItem> {
+  async addGameToList(listId: string, gameId: string, notes?: string): Promise<GameListItem> {
     // Get the current max order value
     const maxOrder = await prisma.gameListItem.aggregate({
       where: { listId },
@@ -259,9 +251,7 @@ export class ListRepository {
   /**
    * Reorder multiple items in a list
    */
-  async reorderItems(
-    items: Array<{ id: string; order: number }>
-  ): Promise<void> {
+  async reorderItems(items: Array<{ id?: string; order?: number }>): Promise<void> {
     // Use transaction to update all items atomically
     await prisma.$transaction(
       items.map((item) =>

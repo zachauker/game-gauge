@@ -1,13 +1,13 @@
 import { listRepository } from '../repositories/list.repository';
 import { gameRepository } from '../repositories/game.repository';
-import { NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.util';
+import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.util';
 import {
-  CreateListInput,
-  UpdateListInput,
   AddGameToListInput,
-  UpdateListItemInput,
-  ReorderListItemsInput,
+  CreateListInput,
   GetListsQuery,
+  ReorderListItemsInput,
+  UpdateListInput,
+  UpdateListItemInput,
 } from '../validators/list.validator';
 
 export class ListService {
@@ -15,7 +15,7 @@ export class ListService {
    * Create a new list
    */
   async create(userId: string, data: CreateListInput) {
-    const list = await listRepository.create({
+    return await listRepository.create({
       name: data.name,
       description: data.description,
       isPublic: data.isPublic,
@@ -23,8 +23,6 @@ export class ListService {
         connect: { id: userId },
       },
     });
-
-    return list;
   }
 
   /**
@@ -86,8 +84,7 @@ export class ListService {
       throw new ForbiddenError('You can only edit your own lists');
     }
 
-    const updatedList = await listRepository.update(listId, data);
-    return updatedList;
+    return await listRepository.update(listId, data);
   }
 
   /**
@@ -136,13 +133,7 @@ export class ListService {
     }
 
     // Add game to list
-    const listItem = await listRepository.addGameToList(
-      listId,
-      data.gameId,
-      data.notes
-    );
-
-    return listItem;
+    return await listRepository.addGameToList(listId, data.gameId, data.notes);
   }
 
   /**
@@ -172,12 +163,7 @@ export class ListService {
   /**
    * Update list item (notes, order)
    */
-  async updateListItem(
-    listId: string,
-    gameId: string,
-    userId: string,
-    data: UpdateListItemInput
-  ) {
+  async updateListItem(listId: string, gameId: string, userId: string, data: UpdateListItemInput) {
     // Check if list exists and user owns it
     const list = await listRepository.findById(listId);
     if (!list) {
@@ -194,8 +180,7 @@ export class ListService {
       throw new NotFoundError('Game not found in list');
     }
 
-    const updatedItem = await listRepository.updateListItem(listId, gameId, data);
-    return updatedItem;
+    return await listRepository.updateListItem(listId, gameId, data);
   }
 
   /**

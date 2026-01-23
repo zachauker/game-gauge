@@ -1,5 +1,5 @@
-import { hashPassword, comparePasswords } from '../../utils/password.util';
-import bcrypt from 'bcrypt';
+import { hashPassword, comparePassword } from '../../utils/password.util';
+import * as bcrypt from 'bcrypt';
 
 // Mock bcrypt
 jest.mock('bcrypt');
@@ -41,7 +41,7 @@ describe('Password Utilities', () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       // Act
-      const result = await comparePasswords(password, hashedPassword);
+      const result = await comparePassword(password, hashedPassword);
 
       // Assert
       expect(bcrypt.compare).toHaveBeenCalledWith(password, hashedPassword);
@@ -55,7 +55,7 @@ describe('Password Utilities', () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       // Act
-      const result = await comparePasswords(password, hashedPassword);
+      const result = await comparePassword(password, hashedPassword);
 
       // Assert
       expect(result).toBe(false);
