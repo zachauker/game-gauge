@@ -27,12 +27,9 @@ export class ReviewService {
     // Create review
     const review = await reviewRepository.create({
       content: data.content,
-      user: {
-        connect: { id: userId },
-      },
-      game: {
-        connect: { id: gameId },
-      },
+      userId,
+      gameId,
+      spoilers: data.spoilers,
     });
 
     // Return review with user info
@@ -104,7 +101,10 @@ export class ReviewService {
     }
 
     // Update review
-    await reviewRepository.update(reviewId, data.content);
+    await reviewRepository.updateContent(reviewId, {
+      content: data.content,
+      spoilers: data.spoilers,
+    });
 
     // Return updated review with user info
     return reviewRepository.findById(reviewId);
@@ -151,6 +151,62 @@ export class ReviewService {
    */
   async getRecentPlatformReviews(limit: number = 10) {
     return reviewRepository.getRecentReviews(limit);
+  }
+
+  /**
+   * Mark review as helpful
+   */
+  async markHelpful(reviewId: string, userId: string) {
+    // Check if review exists
+    const review = await reviewRepository.findById(reviewId);
+    if (!review) {
+      throw new NotFoundError('Review not found');
+    }
+
+    // Can't mark your own review as helpful
+    if (review.userId === userId) {
+      throw new ConflictError('You cannot mark your own review as helpful');
+    }
+
+    // Check if already marked
+    const hasVoted = await reviewRepository.hasUserVotedHelpful(reviewId, userId);
+    if (hasVoted) {
+      throw new ConflictError('You have already marked this review as helpful');
+    }
+
+    // Add helpful vote
+    await reviewRepository.addHelpfulVote(reviewId, userId);
+
+    return { message: 'Review marked as helpful' };
+  }
+
+  /**
+   * Remove helpful mark from review
+   */
+  async unmarkHelpful(reviewId: string, userId: string) {
+    // Check if review exists
+    const review = await reviewRepository.findById(reviewId);
+    if (!review) {
+      throw new NotFoundError('Review not found');
+    }
+
+    // Check if has voted
+    const hasVoted = await reviewRepository.hasUserVotedHelpful(reviewId, userId);
+    if (!hasVoted) {
+      throw new ConflictError('You have not marked this review as helpful');
+    }
+
+    // Remove helpful vote
+    await reviewRepository.removeHelpfulVote(reviewId, userId);
+
+    return { message: 'Helpful mark removed' };
+  }
+
+  /**
+   * Get user's helpful votes for reviews
+   */
+  async getUserHelpfulVotes(userId: string, reviewIds: string[]) {
+    return reviewRepository.getUserHelpfulVotes(userId, reviewIds);
   }
 }
 

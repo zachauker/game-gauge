@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { Rating } from '@prisma/client';
+import { Rating, Prisma } from '@prisma/client';
 
 export interface RatingWithUser extends Rating {
   user: {
@@ -70,7 +70,11 @@ export class RatingRepository {
   /**
    * Get all ratings for a game with pagination
    */
-  async findByGame(gameId: string, page: number, limit: number): Promise<PaginatedRatings> {
+  async findByGame(
+    gameId: string,
+    page: number,
+    limit: number
+  ): Promise<PaginatedRatings> {
     const skip = (page - 1) * limit;
 
     const [ratings, total] = await Promise.all([
@@ -108,7 +112,11 @@ export class RatingRepository {
   /**
    * Get all ratings by a user
    */
-  async findByUser(userId: string, page: number, limit: number): Promise<PaginatedRatings> {
+  async findByUser(
+    userId: string,
+    page: number,
+    limit: number
+  ): Promise<PaginatedRatings> {
     const skip = (page - 1) * limit;
 
     const [ratings, total] = await Promise.all([

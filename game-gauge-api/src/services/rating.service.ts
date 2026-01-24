@@ -1,6 +1,6 @@
 import { ratingRepository } from '../repositories/rating.repository';
 import { gameRepository } from '../repositories/game.repository';
-import { NotFoundError } from '../utils/errors.util';
+import { NotFoundError, BadRequestError } from '../utils/errors.util';
 import { RatingInput, GetRatingsQuery } from '../validators/rating.validator';
 
 export class RatingService {

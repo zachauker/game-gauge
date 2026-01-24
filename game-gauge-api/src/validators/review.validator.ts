@@ -9,6 +9,7 @@ export const createReviewSchema = z.object({
     .min(10, 'Review must be at least 10 characters')
     .max(5000, 'Review must be less than 5000 characters')
     .trim(),
+  spoilers: z.boolean().optional().default(false),
 });
 
 /**
@@ -19,7 +20,9 @@ export const updateReviewSchema = z.object({
     .string()
     .min(10, 'Review must be at least 10 characters')
     .max(5000, 'Review must be less than 5000 characters')
-    .trim(),
+    .trim()
+    .optional(),
+  spoilers: z.boolean().optional(),
 });
 
 /**
@@ -39,9 +42,9 @@ export const getReviewsQuerySchema = z.object({
     .transform((val) => parseInt(val, 10))
     .refine((val) => val > 0 && val <= 100, 'Limit must be between 1 and 100'),
   sortBy: z
-    .enum(['createdAt', 'updatedAt'])
+    .enum(['createdAt', 'updatedAt', 'helpfulCount'])
     .optional()
-    .default('createdAt'),
+    .default('helpfulCount'),
   sortOrder: z
     .enum(['asc', 'desc'])
     .optional()

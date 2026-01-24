@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import * as dotenv from 'dotenv';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -20,6 +20,8 @@ const parseEnv = () => {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
+    console.error('❌ Invalid environment variables:');
+    console.error(result.error.format());
     process.exit(1);
   }
 

@@ -56,4 +56,18 @@ router.patch('/:id', authenticate, reviewController.update.bind(reviewController
  */
 router.delete('/:id', authenticate, reviewController.delete.bind(reviewController));
 
+/**
+ * @route   POST /api/reviews/:id/helpful
+ * @desc    Mark review as helpful
+ * @access  Private
+ */
+router.post('/:id/helpful', authenticate, reviewController.markHelpful.bind(reviewController));
+
+/**
+ * @route   DELETE /api/reviews/:id/helpful
+ * @desc    Remove helpful mark from review
+ * @access  Private
+ */
+router.delete('/:id/helpful', authenticate, reviewController.unmarkHelpful.bind(reviewController));
+
 export default router;

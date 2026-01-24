@@ -7,6 +7,14 @@ export interface ReviewWithUser extends Review {
     username: string;
     avatar: string | null;
   };
+  _count?: {
+    helpfulVotes: number;
+  };
+  game?: {
+    id: string;
+    title: string;
+    coverImage: string | null;
+  };
 }
 
 export interface PaginatedReviews {
@@ -23,9 +31,21 @@ export class ReviewRepository {
   /**
    * Create a new review
    */
-  async create(data: Prisma.ReviewCreateInput): Promise<Review> {
+  async create(data: {
+    content: string;
+    userId: string;
+    gameId: string;
+    ratingId?: string;
+    spoilers?: boolean;
+  }): Promise<Review> {
     return prisma.review.create({
-      data,
+      data: {
+        content: data.content,
+        userId: data.userId,
+        gameId: data.gameId,
+        ratingId: data.ratingId,
+        spoilers: data.spoilers || false,
+      },
     });
   }
 
@@ -41,6 +61,11 @@ export class ReviewRepository {
             id: true,
             username: true,
             avatar: true,
+          },
+        },
+        _count: {
+          select: {
+            helpfulVotes: true,
           },
         },
       },
@@ -68,7 +93,7 @@ export class ReviewRepository {
     gameId: string,
     page: number,
     limit: number,
-    sortBy: 'createdAt' | 'updatedAt' = 'createdAt',
+    sortBy: 'createdAt' | 'updatedAt' | 'helpfulCount' = 'helpfulCount',
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<PaginatedReviews> {
     const skip = (page - 1) * limit;
@@ -89,6 +114,11 @@ export class ReviewRepository {
               id: true,
               username: true,
               avatar: true,
+            },
+          },
+          _count: {
+            select: {
+              helpfulVotes: true,
             },
           },
         },
@@ -114,7 +144,7 @@ export class ReviewRepository {
     userId: string,
     page: number,
     limit: number,
-    sortBy: 'createdAt' | 'updatedAt' = 'createdAt',
+    sortBy: 'createdAt' | 'updatedAt' | 'helpfulCount' = 'createdAt',
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<PaginatedReviews> {
     const skip = (page - 1) * limit;
@@ -257,6 +287,102 @@ export class ReviewRepository {
     return prisma.review.count({
       where: { userId },
     });
+  }
+
+  /**
+   * Update review content and/or spoiler flag
+   */
+  async updateContent(id: string, data: { content?: string; spoilers?: boolean }): Promise<Review> {
+    return prisma.review.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Add helpful vote to review
+   */
+  async addHelpfulVote(reviewId: string, userId: string): Promise<void> {
+    await prisma.$transaction([
+      // Create the vote
+      prisma.reviewHelpful.create({
+        data: {
+          reviewId,
+          userId,
+        },
+      }),
+      // Increment the count
+      prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          helpfulCount: {
+            increment: 1,
+          },
+        },
+      }),
+    ]);
+  }
+
+  /**
+   * Remove helpful vote from review
+   */
+  async removeHelpfulVote(reviewId: string, userId: string): Promise<void> {
+    await prisma.$transaction([
+      // Delete the vote
+      prisma.reviewHelpful.delete({
+        where: {
+          userId_reviewId: {
+            userId,
+            reviewId,
+          },
+        },
+      }),
+      // Decrement the count
+      prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          helpfulCount: {
+            decrement: 1,
+          },
+        },
+      }),
+    ]);
+  }
+
+  /**
+   * Check if user has voted helpful on a review
+   */
+  async hasUserVotedHelpful(reviewId: string, userId: string): Promise<boolean> {
+    const vote = await prisma.reviewHelpful.findUnique({
+      where: {
+        userId_reviewId: {
+          userId,
+          reviewId,
+        },
+      },
+    });
+    return !!vote;
+  }
+
+  /**
+   * Get user's helpful votes for multiple reviews
+   */
+  async getUserHelpfulVotes(userId: string, reviewIds: string[]): Promise<string[]> {
+    const votes = await prisma.reviewHelpful.findMany({
+      where: {
+        userId,
+        reviewId: {
+          in: reviewIds,
+        },
+      },
+      select: {
+        reviewId: true,
+      },
+    });
+    return votes.map(v => v.reviewId);
   }
 }
 

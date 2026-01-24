@@ -1,7 +1,11 @@
 import { gameRepository } from '../repositories/game.repository';
-import { ConflictError, NotFoundError } from '../utils/errors.util';
+import { NotFoundError, ConflictError } from '../utils/errors.util';
 import { generateSlug, generateUniqueSlug } from '../utils/slug.util';
-import { CreateGameInput, ListGamesQuery, UpdateGameInput } from '../validators/game.validator';
+import {
+  CreateGameInput,
+  UpdateGameInput,
+  ListGamesQuery,
+} from '../validators/game.validator';
 
 export class GameService {
   /**
@@ -23,18 +27,12 @@ export class GameService {
       }
     }
 
-    return await gameRepository.create({
-      title: data.title,
-      description: data.description,
+    const game = await gameRepository.create({
+      ...data,
       slug,
-      releaseDate: data.releaseDate,
-      developer: data.developer,
-      publisher: data.publisher,
-      genres: data.genres,
-      platforms: data.platforms,
-      coverImage: data.coverImage,
-      metacritic: data.metacritic,
     });
+
+    return game;
   }
 
   /**
@@ -99,10 +97,12 @@ export class GameService {
       }
     }
 
-    return await gameRepository.update(id, {
+    const updatedGame = await gameRepository.update(id, {
       ...data,
       ...(slug && { slug }),
     });
+
+    return updatedGame;
   }
 
   /**

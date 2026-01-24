@@ -224,6 +224,50 @@ export class ReviewController {
       next(error);
     }
   }
+
+  /**
+   * Mark review as helpful
+   * POST /api/reviews/:id/helpful
+   */
+  async markHelpful(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { id } = req.params;
+      const result = await reviewService.markHelpful(id as string, req.user.userId);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Remove helpful mark from review
+   * DELETE /api/reviews/:id/helpful
+   */
+  async unmarkHelpful(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { id } = req.params;
+      const result = await reviewService.unmarkHelpful(id as string, req.user.userId);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const reviewController = new ReviewController();
