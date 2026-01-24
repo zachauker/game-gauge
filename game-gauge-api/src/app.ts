@@ -1,12 +1,12 @@
-import * as express from 'express';
-import * as cors from 'cors';
+import express, { Application, Response } from 'express';
+import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/requestLogger.middleware';
 import routes from './routes';
 
-const app: express.Application = express();
+const app: Application = express();
 
 // Security middleware
 app.use(helmet());
@@ -42,7 +42,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
 // Health check endpoint
-app.get('/health', (req: express.Request, res: express.Response) => {
+app.get('/health', (res: Response) => {
   res.status(200).json({
     success: true,
     data: {
@@ -57,7 +57,7 @@ app.get('/health', (req: express.Request, res: express.Response) => {
 app.use('/api', routes);
 
 // 404 handler
-app.use((req: express.Request, res: express.Response) => {
+app.use((res: Response) => {
   res.status(404).json({
     success: false,
     error: {
