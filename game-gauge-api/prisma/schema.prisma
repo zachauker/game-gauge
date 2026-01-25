@@ -72,6 +72,7 @@ model Review {
   
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   game         Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  rating       Rating?       @relation(fields: [ratingId], references: [id], onDelete: SetNull)
   helpfulVotes ReviewHelpful[]
   
   @@unique([userId, gameId])
@@ -105,6 +106,7 @@ model Rating {
   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  review    Review?  // One-to-one with Review
   
   @@unique([userId, gameId])
   @@index([gameId])

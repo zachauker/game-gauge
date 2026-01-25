@@ -1,4 +1,4 @@
-import winston from 'winston';
+import * as winston from 'winston';
 import { env } from '../config/env';
 
 const levels = {

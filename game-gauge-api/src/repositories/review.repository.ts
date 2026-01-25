@@ -46,6 +46,26 @@ export class ReviewRepository {
         ratingId: data.ratingId,
         spoilers: data.spoilers || false,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+        rating: {
+          select: {
+            id: true,
+            score: true,
+          },
+        },
+        _count: {
+          select: {
+            helpfulVotes: true,
+          },
+        },
+      },
     });
   }
 
@@ -81,6 +101,26 @@ export class ReviewRepository {
         userId_gameId: {
           userId,
           gameId,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+        rating: {
+          select: {
+            id: true,
+            score: true,
+          },
+        },
+        _count: {
+          select: {
+            helpfulVotes: true,
+          },
         },
       },
     });
@@ -298,6 +338,26 @@ export class ReviewRepository {
       data: {
         ...data,
         updatedAt: new Date(),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+        rating: {
+          select: {
+            id: true,
+            score: true,
+          },
+        },
+        _count: {
+          select: {
+            helpfulVotes: true,
+          },
+        },
       },
     });
   }
