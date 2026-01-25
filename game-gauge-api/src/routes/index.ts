@@ -5,6 +5,7 @@ import ratingRoutes from './rating.routes';
 import reviewRoutes from './review.routes';
 import igdbRoutes from './igdb.routes';
 import listRoutes from './list.routes';
+import userRoutes from './user.routes';
 
 const router = Router();
 
@@ -15,5 +16,6 @@ router.use('/ratings', ratingRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/igdb', igdbRoutes);
 router.use('/lists', listRoutes);
+router.use('/users', userRoutes);
 
 export default router;

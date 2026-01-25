@@ -25,6 +25,18 @@ router.get('/public', listController.getPublicLists.bind(listController));
 router.get('/popular', listController.getPopularLists.bind(listController));
 
 /**
+ * Protected routes (authentication required)
+ */
+
+/**
+ * @route   GET /api/lists/me
+ * @desc    Get all lists by current user
+ * @access  Private
+ * @note    Must be before /:id to avoid matching "me" as an ID
+ */
+router.get('/me', authenticate, listController.getMyLists.bind(listController));
+
+/**
  * @route   GET /api/lists/user/:userId
  * @desc    Get all lists by a specific user
  * @access  Public (shows public lists only unless owner)
@@ -37,18 +49,6 @@ router.get('/user/:userId', optionalAuth, listController.getUserLists.bind(listC
  * @access  Public (if list is public) / Private (if list is private and user is owner)
  */
 router.get('/:id', optionalAuth, listController.findById.bind(listController));
-
-/**
- * Protected routes (authentication required)
- */
-
-/**
- * @route   GET /api/lists/me
- * @desc    Get all lists by current user
- * @access  Private
- * @note    Must be after /public and /popular
- */
-router.get('/me', authenticate, listController.getMyLists.bind(listController));
 
 /**
  * @route   POST /api/lists
