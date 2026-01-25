@@ -96,7 +96,7 @@ class UserRepository {
   /**
    * Get user profile with stats (public profile)
    */
-  async getProfile(username: string | string[]): Promise<UserProfile | null> {
+  async getProfile(username: string): Promise<UserProfile | null> {
     return prisma.user.findUnique({
       where: { username },
       select: {

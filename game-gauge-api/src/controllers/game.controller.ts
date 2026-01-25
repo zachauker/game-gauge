@@ -118,24 +118,6 @@ export class GameController {
   }
 
   /**
-   * Get top-rated games
-   * GET /api/games/top-rated?limit=10
-   */
-  async getTopRated(req: Request, res: Response, next: NextFunction) {
-    try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
-      const games = await gameService.getTopRated(limit);
-
-      res.status(200).json({
-        success: true,
-        data: games,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
    * Get recently added games
    * GET /api/games/recent?limit=10
    */

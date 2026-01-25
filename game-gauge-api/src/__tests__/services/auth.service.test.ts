@@ -41,7 +41,7 @@ describe('AuthService', () => {
         firstName: registerData.firstName,
         lastName: registerData.lastName,
       };
-      
+
       (prisma.user.findUnique as jest.Mock)
         .mockResolvedValueOnce(null) // findByEmail returns null
         .mockResolvedValueOnce(null); // findByUsername returns null
@@ -78,10 +78,8 @@ describe('AuthService', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(testUser); // Email exists
 
       // Act & Assert
-      await expect(authService.register(registerData))
-        .rejects.toThrow(ConflictError);
-      await expect(authService.register(registerData))
-        .rejects.toThrow('Email already registered');
+      await expect(authService.register(registerData)).rejects.toThrow(ConflictError);
+      await expect(authService.register(registerData)).rejects.toThrow('Email already registered');
     });
 
     it('should throw ConflictError if username already exists', async () => {
@@ -91,10 +89,8 @@ describe('AuthService', () => {
         .mockResolvedValueOnce(testUser); // Username exists
 
       // Act & Assert
-      await expect(authService.register(registerData))
-        .rejects.toThrow(ConflictError);
-      await expect(authService.register(registerData))
-        .rejects.toThrow('Username already taken');
+      await expect(authService.register(registerData)).rejects.toThrow(ConflictError);
+      await expect(authService.register(registerData)).rejects.toThrow('Username already taken');
     });
   });
 
@@ -132,10 +128,8 @@ describe('AuthService', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(authService.login(loginData))
-        .rejects.toThrow(UnauthorizedError);
-      await expect(authService.login(loginData))
-        .rejects.toThrow('Invalid credentials');
+      await expect(authService.login(loginData)).rejects.toThrow(UnauthorizedError);
+      await expect(authService.login(loginData)).rejects.toThrow('Invalid credentials');
     });
 
     it('should throw UnauthorizedError if password is invalid', async () => {
@@ -144,10 +138,8 @@ describe('AuthService', () => {
       (comparePassword as jest.Mock).mockResolvedValue(false);
 
       // Act & Assert
-      await expect(authService.login(loginData))
-        .rejects.toThrow(UnauthorizedError);
-      await expect(authService.login(loginData))
-        .rejects.toThrow('Invalid credentials');
+      await expect(authService.login(loginData)).rejects.toThrow(UnauthorizedError);
+      await expect(authService.login(loginData)).rejects.toThrow('Invalid credentials');
     });
   });
 
@@ -157,7 +149,7 @@ describe('AuthService', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(testUser);
 
       // Act
-      const result = await authService.getProfile(testUser.id);
+      const result = await authService.getCurrentUser(testUser.id);
 
       // Assert
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
@@ -172,7 +164,7 @@ describe('AuthService', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act
-      const result = await authService.getProfile('invalid-id');
+      const result = await authService.getCurrentUser('invalid-id');
 
       // Assert
       expect(result).toBeNull();
