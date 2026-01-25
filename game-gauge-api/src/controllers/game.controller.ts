@@ -152,6 +152,124 @@ export class GameController {
       next(error);
     }
   }
+
+  /**
+   * Get top rated games
+   * GET /api/games/top-rated?limit=20
+   */
+  async getTopRated(req: Request, res: Response, next: NextFunction) {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const games = await gameService.getTopRated(limit);
+
+      res.status(200).json({
+        success: true,
+        data: games,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get trending games
+   * GET /api/games/trending?days=7&limit=20
+   */
+  async getTrending(req: Request, res: Response, next: NextFunction) {
+    try {
+      const days = req.query.days ? parseInt(req.query.days as string, 10) : 7;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const games = await gameService.getTrending(days, limit);
+
+      res.status(200).json({
+        success: true,
+        data: games,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get recently reviewed games
+   * GET /api/games/recently-reviewed?limit=20
+   */
+  async getRecentlyReviewed(req: Request, res: Response, next: NextFunction) {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const games = await gameService.getRecentlyReviewed(limit);
+
+      res.status(200).json({
+        success: true,
+        data: games,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get all genres
+   * GET /api/games/genres
+   */
+  async getGenres(req: Request, res: Response, next: NextFunction) {
+    try {
+      const genres = await gameService.getAllGenres();
+
+      res.status(200).json({
+        success: true,
+        data: genres,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get all platforms
+   * GET /api/games/platforms
+   */
+  async getPlatforms(req: Request, res: Response, next: NextFunction) {
+    try {
+      const platforms = await gameService.getAllPlatforms();
+
+      res.status(200).json({
+        success: true,
+        data: platforms,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get games by genre
+   * GET /api/games/genre/:genre?page=1&limit=20&sortBy=createdAt&sortOrder=desc
+   */
+  async getByGenre(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { genre } = req.params;
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const sortBy = (req.query.sortBy as string) || 'createdAt';
+      const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'desc';
+
+      const result = await gameService.findByGenre(genre, {
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const gameController = new GameController();

@@ -20,6 +20,46 @@ const router = Router();
 router.get('/top-rated', gameController.getTopRated.bind(gameController));
 
 /**
+ * @route   GET /api/games/trending
+ * @desc    Get trending games (most activity in last 7 days)
+ * @access  Public
+ * @note    Must be before /:id route
+ */
+router.get('/trending', gameController.getTrending.bind(gameController));
+
+/**
+ * @route   GET /api/games/recently-reviewed
+ * @desc    Get recently reviewed games
+ * @access  Public
+ * @note    Must be before /:id route
+ */
+router.get('/recently-reviewed', gameController.getRecentlyReviewed.bind(gameController));
+
+/**
+ * @route   GET /api/games/genres
+ * @desc    Get all unique genres
+ * @access  Public
+ * @note    Must be before /:id route
+ */
+router.get('/genres', gameController.getGenres.bind(gameController));
+
+/**
+ * @route   GET /api/games/platforms
+ * @desc    Get all unique platforms
+ * @access  Public
+ * @note    Must be before /:id route
+ */
+router.get('/platforms', gameController.getPlatforms.bind(gameController));
+
+/**
+ * @route   GET /api/games/genre/:genre
+ * @desc    Get games by genre (with pagination and sorting)
+ * @access  Public
+ * @note    Must be before /:id route
+ */
+router.get('/genre/:genre', gameController.getByGenre.bind(gameController));
+
+/**
  * @route   GET /api/games/recent
  * @desc    Get recently added games
  * @access  Public

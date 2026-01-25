@@ -122,10 +122,10 @@ export class GameService {
   }
 
   /**
-   * Get top-rated games
+   * Get top-rated games (updated to use new method)
    */
-  async getTopRated(limit: number = 10) {
-    return gameRepository.findTopRated(limit);
+  async getTopRated(limit: number = 20) {
+    return gameRepository.getTopRated(limit);
   }
 
   /**
@@ -133,6 +133,44 @@ export class GameService {
    */
   async getRecent(limit: number = 10) {
     return gameRepository.findRecent(limit);
+  }
+
+  /**
+   * Get trending games
+   */
+  async getTrending(days: number = 7, limit: number = 20) {
+    return gameRepository.getTrending(days, limit);
+  }
+
+  /**
+   * Get recently reviewed games
+   */
+  async getRecentlyReviewed(limit: number = 20) {
+    return gameRepository.getRecentlyReviewed(limit);
+  }
+
+  /**
+   * Get all genres
+   */
+  async getAllGenres() {
+    return gameRepository.getAllGenres();
+  }
+
+  /**
+   * Get all platforms
+   */
+  async getAllPlatforms() {
+    return gameRepository.getAllPlatforms();
+  }
+
+  /**
+   * Get games by genre
+   */
+  async findByGenre(
+    genre: string,
+    options: { page: number; limit: number; sortBy?: string; sortOrder?: 'asc' | 'desc' }
+  ) {
+    return gameRepository.findByGenre(genre, options);
   }
 }
 

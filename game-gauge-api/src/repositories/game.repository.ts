@@ -149,6 +149,176 @@ export class GameRepository {
   }
 
   /**
+   * Get top rated games (by average rating score)
+   */
+  async getTopRated(limit: number = 20): Promise<Array<Game & { averageRating: number; ratingCount: number }>> {
+    // Get games with ratings, calculate average
+    const gamesWithRatings = await prisma.$queryRaw<
+      Array<Game & { averageRating: number; ratingCount: number }>
+    >`
+      SELECT 
+        g.*,
+        COALESCE(AVG(r.score), 0) as "averageRating",
+        COUNT(r.id)::int as "ratingCount"
+      FROM "Game" g
+      LEFT JOIN "Rating" r ON r."gameId" = g.id
+      GROUP BY g.id
+      HAVING COUNT(r.id) >= 3
+      ORDER BY AVG(r.score) DESC, COUNT(r.id) DESC
+      LIMIT ${limit}
+    `;
+
+    return gamesWithRatings;
+  }
+
+  /**
+   * Get trending games (most rated/reviewed recently)
+   */
+  async getTrending(days: number = 7, limit: number = 20): Promise<Array<Game & { activityCount: number }>> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const trendingGames = await prisma.$queryRaw<
+      Array<Game & { activityCount: number }>
+    >`
+      SELECT 
+        g.*,
+        (
+          (SELECT COUNT(*)::int FROM "Rating" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate}) +
+          (SELECT COUNT(*)::int FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
+        ) as "activityCount"
+      FROM "Game" g
+      WHERE (
+        (SELECT COUNT(*) FROM "Rating" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate}) +
+        (SELECT COUNT(*) FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
+      ) > 0
+      ORDER BY "activityCount" DESC
+      LIMIT ${limit}
+    `;
+
+    return trendingGames;
+  }
+
+  /**
+   * Get recently reviewed games
+   */
+  async getRecentlyReviewed(limit: number = 20): Promise<Game[]> {
+    const recentReviews = await prisma.review.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        gameId: true,
+      },
+      distinct: ['gameId'],
+    });
+
+    const gameIds = recentReviews.map((r) => r.gameId);
+
+    return prisma.game.findMany({
+      where: {
+        id: { in: gameIds },
+      },
+      include: {
+        _count: {
+          select: {
+            reviews: true,
+            ratings: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get all unique genres from games
+   */
+  async getAllGenres(): Promise<string[]> {
+    const games = await prisma.game.findMany({
+      select: { genres: true },
+      where: {
+        genres: {
+          isEmpty: false,
+        },
+      },
+    });
+
+    // Flatten and deduplicate genres
+    const allGenres = games.flatMap((game) => game.genres);
+    const uniqueGenres = [...new Set(allGenres)];
+    
+    return uniqueGenres.sort();
+  }
+
+  /**
+   * Get all unique platforms from games
+   */
+  async getAllPlatforms(): Promise<string[]> {
+    const games = await prisma.game.findMany({
+      select: { platforms: true },
+      where: {
+        platforms: {
+          isEmpty: false,
+        },
+      },
+    });
+
+    // Flatten and deduplicate platforms
+    const allPlatforms = games.flatMap((game) => game.platforms);
+    const uniquePlatforms = [...new Set(allPlatforms)];
+    
+    return uniquePlatforms.sort();
+  }
+
+  /**
+   * Get games by genre with pagination
+   */
+  async findByGenre(
+    genre: string,
+    options: PaginationOptions & { sortBy?: string; sortOrder?: 'asc' | 'desc' }
+  ): Promise<PaginatedResult<Game>> {
+    const { page, limit, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.GameWhereInput = {
+      genres: {
+        has: genre,
+      },
+    };
+
+    const orderBy: Prisma.GameOrderByWithRelationInput = {
+      [sortBy]: sortOrder,
+    };
+
+    const [games, total] = await Promise.all([
+      prisma.game.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: {
+          _count: {
+            select: {
+              reviews: true,
+              ratings: true,
+            },
+          },
+        },
+      }),
+      prisma.game.count({ where }),
+    ]);
+
+    return {
+      data: games,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
    * Update game by ID
    */
   async update(id: string, data: Prisma.GameUpdateInput): Promise<Game> {
