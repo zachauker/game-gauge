@@ -194,7 +194,7 @@ export class GameController {
    * Get all genres
    * GET /api/games/genres
    */
-  async getGenres(req: Request, res: Response, next: NextFunction) {
+  async getGenres(_req: Request, res: Response, next: NextFunction) {
     try {
       const genres = await gameService.getAllGenres();
 
@@ -211,7 +211,7 @@ export class GameController {
    * Get all platforms
    * GET /api/games/platforms
    */
-  async getPlatforms(req: Request, res: Response, next: NextFunction) {
+  async getPlatforms(_req: Request, res: Response, next: NextFunction) {
     try {
       const platforms = await gameService.getAllPlatforms();
 

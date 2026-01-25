@@ -11,11 +11,7 @@ declare global {
   }
 }
 
-export const authenticate = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const authenticate = async (req: Request, _res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -34,11 +30,7 @@ export const authenticate = async (
   }
 };
 
-export const optionalAuth = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const optionalAuth = async (req: Request, _res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
 

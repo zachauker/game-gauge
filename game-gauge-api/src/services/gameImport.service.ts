@@ -1,7 +1,7 @@
-import { igdbService, IGDBGame } from './igdb.service';
+import { igdbService } from './igdb.service';
 import { gameRepository } from '../repositories/game.repository';
 import { generateSlug, generateUniqueSlug } from '../utils/slug.util';
-import { ConflictError, NotFoundError } from '../utils/errors.util';
+import { NotFoundError } from '../utils/errors.util';
 import { logger } from '../utils/logger.util';
 
 /**

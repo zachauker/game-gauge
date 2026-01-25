@@ -1,11 +1,7 @@
 import { gameRepository } from '../repositories/game.repository';
 import { NotFoundError, ConflictError } from '../utils/errors.util';
 import { generateSlug, generateUniqueSlug } from '../utils/slug.util';
-import {
-  CreateGameInput,
-  UpdateGameInput,
-  ListGamesQuery,
-} from '../validators/game.validator';
+import { CreateGameInput, UpdateGameInput, ListGamesQuery } from '../validators/game.validator';
 
 export class GameService {
   /**
@@ -167,7 +163,7 @@ export class GameService {
    * Get games by genre
    */
   async findByGenre(
-    genre: string,
+    genre: string | string[],
     options: { page: number; limit: number; sortBy?: string; sortOrder?: 'asc' | 'desc' }
   ) {
     return gameRepository.findByGenre(genre, options);

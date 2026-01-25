@@ -3,7 +3,7 @@ import { gameController } from '../controllers/game.controller';
 import { ratingController } from '../controllers/rating.controller';
 import { reviewController } from '../controllers/review.controller';
 import { listController } from '../controllers/list.controller';
-import { authenticate, optionalAuth } from '../middleware/auth.middleware';
+import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -131,14 +131,22 @@ router.get('/:gameId/rating/stats', ratingController.getGameStats.bind(ratingCon
  * @desc    Check if current user has rated this game
  * @access  Private
  */
-router.get('/:gameId/rating/check', authenticate, ratingController.checkUserRating.bind(ratingController));
+router.get(
+  '/:gameId/rating/check',
+  authenticate,
+  ratingController.checkUserRating.bind(ratingController)
+);
 
 /**
  * @route   GET /api/games/:gameId/rating/me
  * @desc    Get current user's rating for this game
  * @access  Private
  */
-router.get('/:gameId/rating/me', authenticate, ratingController.getUserRating.bind(ratingController));
+router.get(
+  '/:gameId/rating/me',
+  authenticate,
+  ratingController.getUserRating.bind(ratingController)
+);
 
 /**
  * @route   GET /api/games/:gameId/ratings
@@ -159,7 +167,11 @@ router.post('/:gameId/rating', authenticate, ratingController.rateGame.bind(rati
  * @desc    Delete user's rating for a game
  * @access  Private
  */
-router.delete('/:gameId/rating', authenticate, ratingController.deleteRating.bind(ratingController));
+router.delete(
+  '/:gameId/rating',
+  authenticate,
+  ratingController.deleteRating.bind(ratingController)
+);
 
 /**
  * Review routes for specific games
@@ -171,14 +183,22 @@ router.delete('/:gameId/rating', authenticate, ratingController.deleteRating.bin
  * @access  Private
  * @note    Must be before other review routes
  */
-router.get('/:gameId/reviews/check', authenticate, reviewController.checkUserReview.bind(reviewController));
+router.get(
+  '/:gameId/reviews/check',
+  authenticate,
+  reviewController.checkUserReview.bind(reviewController)
+);
 
 /**
  * @route   GET /api/games/:gameId/reviews/me
  * @desc    Get current user's review for this game
  * @access  Private
  */
-router.get('/:gameId/reviews/me', authenticate, reviewController.getUserReview.bind(reviewController));
+router.get(
+  '/:gameId/reviews/me',
+  authenticate,
+  reviewController.getUserReview.bind(reviewController)
+);
 
 /**
  * @route   GET /api/games/:gameId/reviews
@@ -206,4 +226,3 @@ export default router;
  * @access  Public
  */
 router.get('/:gameId/lists', listController.getListsContainingGame.bind(listController));
-

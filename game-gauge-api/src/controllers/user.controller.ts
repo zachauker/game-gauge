@@ -27,7 +27,7 @@ export class UserController {
   async getStats(req: Request, res: Response, next: NextFunction) {
     try {
       const { username } = req.params;
-      
+
       // First get user profile to get ID
       const profile = await userService.getProfile(username);
       const stats = await userService.getUserStats(profile.id);
@@ -172,6 +172,7 @@ export class UserController {
     } catch (error) {
       next(error);
     }
+    return next();
   }
 }
 

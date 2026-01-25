@@ -80,10 +80,16 @@ export class GameRepository {
   /**
    * Find all games with pagination, search, and filtering
    */
-  async findAll(
-    options: PaginationOptions & SearchOptions
-  ): Promise<PaginatedResult<Game>> {
-    const { page, limit, search, genre, platform, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+  async findAll(options: PaginationOptions & SearchOptions): Promise<PaginatedResult<Game>> {
+    const {
+      page,
+      limit,
+      search,
+      genre,
+      platform,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = options;
 
     // Build where clause for filtering
     const where: Prisma.GameWhereInput = {};
@@ -151,7 +157,9 @@ export class GameRepository {
   /**
    * Get top rated games (by average rating score)
    */
-  async getTopRated(limit: number = 20): Promise<Array<Game & { averageRating: number; ratingCount: number }>> {
+  async getTopRated(
+    limit: number = 20
+  ): Promise<Array<Game & { averageRating: number; ratingCount: number }>> {
     // Get games with ratings, calculate average
     const gamesWithRatings = await prisma.$queryRaw<
       Array<Game & { averageRating: number; ratingCount: number }>
@@ -174,13 +182,14 @@ export class GameRepository {
   /**
    * Get trending games (most rated/reviewed recently)
    */
-  async getTrending(days: number = 7, limit: number = 20): Promise<Array<Game & { activityCount: number }>> {
+  async getTrending(
+    days: number = 7,
+    limit: number = 20
+  ): Promise<Array<Game & { activityCount: number }>> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    const trendingGames = await prisma.$queryRaw<
-      Array<Game & { activityCount: number }>
-    >`
+    const trendingGames = await prisma.$queryRaw<Array<Game & { activityCount: number }>>`
       SELECT 
         g.*,
         (
@@ -245,7 +254,7 @@ export class GameRepository {
     // Flatten and deduplicate genres
     const allGenres = games.flatMap((game) => game.genres);
     const uniqueGenres = [...new Set(allGenres)];
-    
+
     return uniqueGenres.sort();
   }
 
@@ -265,7 +274,7 @@ export class GameRepository {
     // Flatten and deduplicate platforms
     const allPlatforms = games.flatMap((game) => game.platforms);
     const uniquePlatforms = [...new Set(allPlatforms)];
-    
+
     return uniquePlatforms.sort();
   }
 
@@ -273,7 +282,7 @@ export class GameRepository {
    * Get games by genre with pagination
    */
   async findByGenre(
-    genre: string,
+    genre: string | string[],
     options: PaginationOptions & { sortBy?: string; sortOrder?: 'asc' | 'desc' }
   ): Promise<PaginatedResult<Game>> {
     const { page, limit, sortBy = 'createdAt', sortOrder = 'desc' } = options;
@@ -281,7 +290,7 @@ export class GameRepository {
 
     const where: Prisma.GameWhereInput = {
       genres: {
-        has: genre,
+        has: genre as string,
       },
     };
 
@@ -352,7 +361,7 @@ export class GameRepository {
    */
   async isSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
     const where: Prisma.GameWhereInput = { slug };
-    
+
     // Exclude current game ID when updating
     if (excludeId) {
       where.id = { not: excludeId };
@@ -392,9 +401,7 @@ export class GameRepository {
       .map((game) => {
         const ratings = game.ratings;
         const avgRating =
-          ratings.length > 0
-            ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length
-            : 0;
+          ratings.length > 0 ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length : 0;
 
         // Remove the ratings array from the result (we don't need to send it to client)
         const { ratings: _, ...gameWithoutRatings } = game;

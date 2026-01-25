@@ -2,7 +2,7 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
-import { logger } from './utils/logger.util';
+
 import { errorHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/requestLogger.middleware';
 import routes from './routes';
@@ -12,13 +12,7 @@ const app: Application = express();
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
-const allowedOrigins = [
-  'http://localhost:3001', // Next.js frontend
-  'http://localhost:5173', // Vite frontend (if using)
-  env.CORS_ORIGIN,
-].filter(Boolean);
-
+// CORS middleware
 app.use(
   cors({
     origin:
@@ -37,7 +31,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     data: {
@@ -52,7 +46,7 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/api', routes);
 
 // 404 handler
-app.use((req: Request, res: Response) => {
+app.use((_req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     error: {
