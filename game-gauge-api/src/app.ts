@@ -21,16 +21,10 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or Postman)
-      if (!origin) return callback(null, true);
-      
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? ['https://gamegauge.app', 'https://gamegauge.vercel.app']
+        : 'http://localhost:3001',
     credentials: true,
   })
 );
