@@ -12,12 +12,13 @@ const app: Application = express();
 // Security middleware
 app.use(helmet());
 
-// CORS configuration - Fixed for TypeScript
+// CORS configuration
 const allowedOrigins: (string | RegExp)[] = ['http://localhost:3001', 'http://localhost:5173'];
 
-// Add production frontend URL if set
+// Add production frontend URLs (can be comma-separated)
 if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
+  const frontendUrls = process.env.FRONTEND_URL.split(',').map((url) => url.trim());
+  allowedOrigins.push(...frontendUrls);
 }
 
 // Add custom CORS origin if set
@@ -27,7 +28,6 @@ if (env.CORS_ORIGIN) {
 
 // In production, allow Vercel preview deployments
 if (process.env.NODE_ENV === 'production') {
-  allowedOrigins.push('https://gamegauge.app');
   allowedOrigins.push(/\.vercel\.app$/);
 }
 
