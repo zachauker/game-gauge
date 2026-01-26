@@ -27,6 +27,7 @@ if (env.CORS_ORIGIN) {
 
 // In production, allow Vercel preview deployments
 if (process.env.NODE_ENV === 'production') {
+  allowedOrigins.push('https://gamegauge.app');
   allowedOrigins.push(/\.vercel\.app$/);
 }
 
