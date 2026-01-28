@@ -25,4 +25,11 @@ router.post('/login', authController.login.bind(authController));
  */
 router.get('/me', authenticate, authController.getCurrentUser.bind(authController));
 
+/**
+ * @route   POST /api/auth/change-password
+ * @desc    Change user password
+ * @access  Private
+ */
+router.post('/change-password', authenticate, authController.changePassword.bind(authController));
+
 export default router;
