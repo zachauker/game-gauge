@@ -17,7 +17,10 @@ describe('RatingService', () => {
       // Arrange
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(testGame);
       (prisma.rating.upsert as jest.Mock).mockResolvedValue(testRating);
-      (prisma.rating.aggregate as jest.Mock).mockResolvedValue({ _avg: { score: 8.5 }, _count: { score: 10 } });
+      (prisma.rating.aggregate as jest.Mock).mockResolvedValue({
+        _avg: { score: 8.5 },
+        _count: { score: 10 },
+      });
       (prisma.rating.groupBy as jest.Mock).mockResolvedValue([
         { score: 8, _count: { score: 5 } },
         { score: 9, _count: { score: 3 } },
@@ -41,8 +44,9 @@ describe('RatingService', () => {
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(ratingService.rateGame(testUser.id, 'invalid-game-id', ratingData))
-        .rejects.toThrow(NotFoundError);
+      await expect(
+        ratingService.rateGame(testUser.id, 'invalid-game-id', ratingData)
+      ).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -69,8 +73,9 @@ describe('RatingService', () => {
       (prisma.rating.findFirst as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(ratingService.getUserRating(testUser.id, testGame.id))
-        .rejects.toThrow(NotFoundError);
+      await expect(ratingService.getUserRating(testUser.id, testGame.id)).rejects.toThrow(
+        NotFoundError
+      );
     });
   });
 
@@ -85,6 +90,7 @@ describe('RatingService', () => {
       const result = await ratingService.getGameRatings(testGame.id, { page: 1, limit: 10 });
 
       // Assert
+      expect(result).toHaveProperty('data');
       expect(prisma.game.findUnique).toHaveBeenCalledWith({
         where: { id: testGame.id },
       });
@@ -96,8 +102,9 @@ describe('RatingService', () => {
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(ratingService.getGameRatings('invalid-game-id', { page: 1, limit: 10 }))
-        .rejects.toThrow(NotFoundError);
+      await expect(
+        ratingService.getGameRatings('invalid-game-id', { page: 1, limit: 10 })
+      ).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -111,6 +118,7 @@ describe('RatingService', () => {
       const result = await ratingService.getUserRatings(testUser.id, { page: 1, limit: 10 });
 
       // Assert
+      expect(result).toHaveProperty('data');
       expect(prisma.rating.findMany).toHaveBeenCalled();
     });
   });
@@ -120,7 +128,10 @@ describe('RatingService', () => {
       // Arrange
       (prisma.rating.findFirst as jest.Mock).mockResolvedValue(testRating);
       (prisma.rating.delete as jest.Mock).mockResolvedValue(testRating);
-      (prisma.rating.aggregate as jest.Mock).mockResolvedValue({ _avg: { score: 8.5 }, _count: { score: 9 } });
+      (prisma.rating.aggregate as jest.Mock).mockResolvedValue({
+        _avg: { score: 8.5 },
+        _count: { score: 9 },
+      });
       (prisma.rating.groupBy as jest.Mock).mockResolvedValue([]);
 
       // Act
@@ -143,8 +154,9 @@ describe('RatingService', () => {
       (prisma.rating.findFirst as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(ratingService.deleteRating(testUser.id, testGame.id))
-        .rejects.toThrow(NotFoundError);
+      await expect(ratingService.deleteRating(testUser.id, testGame.id)).rejects.toThrow(
+        NotFoundError
+      );
     });
   });
 
@@ -152,7 +164,10 @@ describe('RatingService', () => {
     it('should return rating statistics', async () => {
       // Arrange
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(testGame);
-      (prisma.rating.aggregate as jest.Mock).mockResolvedValue({ _avg: { score: 8.5 }, _count: { score: 10 } });
+      (prisma.rating.aggregate as jest.Mock).mockResolvedValue({
+        _avg: { score: 8.5 },
+        _count: { score: 10 },
+      });
       (prisma.rating.groupBy as jest.Mock).mockResolvedValue([
         { score: 10, _count: { score: 2 } },
         { score: 9, _count: { score: 3 } },
@@ -176,8 +191,7 @@ describe('RatingService', () => {
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(ratingService.getGameStats('invalid-game-id'))
-        .rejects.toThrow(NotFoundError);
+      await expect(ratingService.getGameStats('invalid-game-id')).rejects.toThrow(NotFoundError);
     });
   });
 
