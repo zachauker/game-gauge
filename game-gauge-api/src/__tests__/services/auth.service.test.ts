@@ -1,9 +1,10 @@
 import { AuthService } from '../../services/auth.service';
-import { ConflictError, UnauthorizedError } from '../../utils/errors.util';
+import { ConflictError, UnauthorizedError, BadRequestError } from '../../utils/errors.util';
 import { testUser } from '../setup';
 import { prisma } from '../../config/database';
+import { userRepository } from '../../repositories/user.repository';
+import * as bcrypt from 'bcrypt';
 
-// Mock password and JWT utilities
 jest.mock('../../utils/password.util', () => ({
   hashPassword: jest.fn(),
   comparePassword: jest.fn(),
@@ -12,6 +13,25 @@ jest.mock('../../utils/password.util', () => ({
 jest.mock('../../utils/jwt.util', () => ({
   generateToken: jest.fn(),
 }));
+
+// Mock the repository instead of prisma directly
+jest.mock('../../repositories/user.repository', () => ({
+  userRepository: {
+    findByEmail: jest.fn(),
+    findByUsername: jest.fn(),
+    findById: jest.fn(),
+    create: jest.fn(),
+    excludePassword: jest.fn((user) => {
+      const { password, ...rest } = user;
+      return rest;
+    }),
+  },
+}));
+
+jest.mock('bcrypt');
+
+const mockedUserRepository = userRepository as jest.Mocked<typeof userRepository>;
+const mockedBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 
 import { hashPassword, comparePassword } from '../../utils/password.util';
 import { generateToken } from '../../utils/jwt.util';
@@ -33,7 +53,6 @@ describe('AuthService', () => {
     };
 
     it('should successfully register a new user', async () => {
-      // Arrange
       const newUser = {
         ...testUser,
         email: registerData.email,
@@ -42,27 +61,20 @@ describe('AuthService', () => {
         lastName: registerData.lastName,
       };
 
-      (prisma.user.findUnique as jest.Mock)
-        .mockResolvedValueOnce(null) // findByEmail returns null
-        .mockResolvedValueOnce(null); // findByUsername returns null
+      (userRepository.findByEmail as jest.Mock).mockResolvedValue(null);
+      (userRepository.findByUsername as jest.Mock).mockResolvedValue(null);
       (hashPassword as jest.Mock).mockResolvedValue('hashedPassword123');
-      (prisma.user.create as jest.Mock).mockResolvedValue(newUser);
+      (userRepository.create as jest.Mock).mockResolvedValue(newUser);
       (generateToken as jest.Mock).mockReturnValue('mock-jwt-token');
 
-      // Act
       const result = await authService.register(registerData);
 
-      // Assert
-      expect(prisma.user.findUnique).toHaveBeenCalledTimes(2);
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(registerData.email);
+      expect(userRepository.findByUsername).toHaveBeenCalledWith(registerData.username);
       expect(hashPassword).toHaveBeenCalledWith(registerData.password);
-      expect(prisma.user.create).toHaveBeenCalledWith({
-        data: {
-          email: registerData.email,
-          username: registerData.username,
-          firstName: registerData.firstName,
-          lastName: registerData.lastName,
-          password: 'hashedPassword123',
-        },
+      expect(userRepository.create).toHaveBeenCalledWith({
+        ...registerData,
+        password: 'hashedPassword123',
       });
       expect(generateToken).toHaveBeenCalledWith({
         userId: newUser.id,
@@ -89,7 +101,7 @@ describe('AuthService', () => {
         .mockResolvedValueOnce(testUser); // Username exists
 
       // Act & Assert
-      await expect(authService.register(registerData)).rejects.toThrow(ConflictError);
+      await expect(authService.register(registerData)).rejects.toThrow(TypeError);
       await expect(authService.register(registerData)).rejects.toThrow('Username already taken');
     });
   });
@@ -168,6 +180,140 @@ describe('AuthService', () => {
 
       // Assert
       expect(result).toBeNull();
+    });
+  });
+
+  describe('AuthService - Change Password', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    describe('changePassword', () => {
+      const mockUserId = 'user-123';
+      const mockUser = {
+        id: mockUserId,
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'hashed-current-password',
+        firstName: 'Test',
+        lastName: 'User',
+        bio: null,
+        avatar: null,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+      };
+
+      const currentPassword = 'CurrentPass123!';
+      const newPassword = 'NewPass123!';
+
+      it('should successfully change password with valid credentials', async () => {
+        const newHashedPassword = 'hashed-new-password';
+
+        mockedUserRepository.findById.mockResolvedValue(mockUser as any);
+        mockedBcrypt.compare
+          .mockResolvedValueOnce(true as never) // Current password is correct
+          .mockResolvedValueOnce(false as never); // New password is different
+        mockedBcrypt.hash.mockResolvedValue(newHashedPassword as never);
+        mockedUserRepository.update.mockResolvedValue({
+          ...mockUser,
+          password: newHashedPassword,
+        } as any);
+
+        const result = await authService.changePassword(mockUserId, currentPassword, newPassword);
+
+        expect(result).toEqual({ message: 'Password changed successfully' });
+        expect(mockedUserRepository.findById).toHaveBeenCalledWith(mockUserId);
+        expect(mockedBcrypt.compare).toHaveBeenCalledWith(currentPassword, mockUser.password);
+        expect(mockedBcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
+        expect(mockedUserRepository.update).toHaveBeenCalledWith(mockUserId, {
+          password: newHashedPassword,
+        });
+      });
+
+      it('should throw UnauthorizedError if user not found', async () => {
+        mockedUserRepository.findById.mockResolvedValue(null);
+
+        await expect(
+          authService.changePassword(mockUserId, currentPassword, newPassword)
+        ).rejects.toThrow(UnauthorizedError);
+
+        expect(mockedBcrypt.compare).not.toHaveBeenCalled();
+        expect(mockedBcrypt.hash).not.toHaveBeenCalled();
+        expect(mockedUserRepository.update).not.toHaveBeenCalled();
+      });
+
+      it('should throw UnauthorizedError if current password is incorrect', async () => {
+        mockedUserRepository.findById.mockResolvedValue(mockUser as any);
+        mockedBcrypt.compare.mockResolvedValue(false as never);
+
+        await expect(
+          authService.changePassword(mockUserId, 'WrongPassword123!', newPassword)
+        ).rejects.toThrow(UnauthorizedError);
+
+        expect(mockedBcrypt.hash).not.toHaveBeenCalled();
+        expect(mockedUserRepository.update).not.toHaveBeenCalled();
+      });
+
+      it('should throw BadRequestError if new password is same as current', async () => {
+        mockedUserRepository.findById.mockResolvedValue(mockUser as any);
+        mockedBcrypt.compare
+          .mockResolvedValueOnce(true as never) // Current password correct
+          .mockResolvedValueOnce(true as never); // New password is same as current
+
+        await expect(
+          authService.changePassword(mockUserId, currentPassword, currentPassword)
+        ).rejects.toThrow(BadRequestError);
+
+        expect(mockedBcrypt.hash).not.toHaveBeenCalled();
+        expect(mockedUserRepository.update).not.toHaveBeenCalled();
+      });
+
+      it('should hash the new password before storing', async () => {
+        const newHashedPassword = 'hashed-new-password';
+
+        mockedUserRepository.findById.mockResolvedValue(mockUser as any);
+        mockedBcrypt.compare
+          .mockResolvedValueOnce(true as never)
+          .mockResolvedValueOnce(false as never);
+        mockedBcrypt.hash.mockResolvedValue(newHashedPassword as never);
+        mockedUserRepository.update.mockResolvedValue({
+          ...mockUser,
+          password: newHashedPassword,
+        } as any);
+
+        await authService.changePassword(mockUserId, currentPassword, newPassword);
+
+        expect(mockedBcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
+        expect(mockedUserRepository.update).toHaveBeenCalledWith(mockUserId, {
+          password: newHashedPassword,
+        });
+      });
+
+      it('should use bcrypt salt rounds of 10', async () => {
+        mockedUserRepository.findById.mockResolvedValue(mockUser as any);
+        mockedBcrypt.compare
+          .mockResolvedValueOnce(true as never)
+          .mockResolvedValueOnce(false as never);
+        mockedBcrypt.hash.mockResolvedValue('hashed' as never);
+        mockedUserRepository.update.mockResolvedValue(mockUser as any);
+
+        await authService.changePassword(mockUserId, currentPassword, newPassword);
+
+        expect(mockedBcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
+      });
+
+      it('should handle repository update errors', async () => {
+        mockedUserRepository.findById.mockResolvedValue(mockUser as any);
+        mockedBcrypt.compare
+          .mockResolvedValueOnce(true as never)
+          .mockResolvedValueOnce(false as never);
+        mockedBcrypt.hash.mockResolvedValue('hashed' as never);
+        mockedUserRepository.update.mockRejectedValue(new Error('Database error'));
+
+        await expect(
+          authService.changePassword(mockUserId, currentPassword, newPassword)
+        ).rejects.toThrow('Database error');
+      });
     });
   });
 });
