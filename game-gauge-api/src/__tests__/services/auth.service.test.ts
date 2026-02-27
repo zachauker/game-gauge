@@ -20,6 +20,7 @@ jest.mock('../../repositories/user.repository', () => ({
     findByUsername: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
     excludePassword: jest.fn((user) => {
       const { password, ...rest } = user;
       return rest;
@@ -28,9 +29,6 @@ jest.mock('../../repositories/user.repository', () => ({
 }));
 
 jest.mock('bcrypt');
-
-const mockedUserRepository = userRepository as jest.Mocked<typeof userRepository>;
-const mockedBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 
 import { hashPassword, comparePassword } from '../../utils/password.util';
 import { generateToken } from '../../utils/jwt.util';
@@ -180,12 +178,12 @@ describe('AuthService', () => {
     it('should successfully change password with valid credentials', async () => {
       const newHashedPassword = 'hashed-new-password';
 
-      mockedUserRepository.findById.mockResolvedValue(mockUser as any);
-      mockedBcrypt.compare
+      (userRepository.findById as jest.Mock).mockResolvedValue(mockUser as any);
+      (bcrypt.compare as jest.Mock)
         .mockResolvedValueOnce(true as never) // Current password is correct
         .mockResolvedValueOnce(false as never); // New password is different
-      mockedBcrypt.hash.mockResolvedValue(newHashedPassword as never);
-      mockedUserRepository.update.mockResolvedValue({
+      (bcrypt.hash as jest.Mock).mockResolvedValue(newHashedPassword as never);
+      (userRepository.update as jest.Mock).mockResolvedValue({
         ...mockUser,
         password: newHashedPassword,
       } as any);
@@ -193,41 +191,41 @@ describe('AuthService', () => {
       const result = await authService.changePassword(mockUserId, currentPassword, newPassword);
 
       expect(result).toEqual({ message: 'Password changed successfully' });
-      expect(mockedUserRepository.findById).toHaveBeenCalledWith(mockUserId);
-      expect(mockedBcrypt.compare).toHaveBeenCalledWith(currentPassword, mockUser.password);
-      expect(mockedBcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
-      expect(mockedUserRepository.update).toHaveBeenCalledWith(mockUserId, {
+      expect(userRepository.findById).toHaveBeenCalledWith(mockUserId);
+      expect(bcrypt.compare).toHaveBeenCalledWith(currentPassword, mockUser.password);
+      expect(bcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
+      expect(userRepository.update).toHaveBeenCalledWith(mockUserId, {
         password: newHashedPassword,
       });
     });
 
     it('should throw UnauthorizedError if user not found', async () => {
-      mockedUserRepository.findById.mockResolvedValue(null);
+      (userRepository.findById as jest.Mock).mockResolvedValue(null);
 
       await expect(
         authService.changePassword(mockUserId, currentPassword, newPassword)
       ).rejects.toThrow(UnauthorizedError);
 
-      expect(mockedBcrypt.compare).not.toHaveBeenCalled();
-      expect(mockedBcrypt.hash).not.toHaveBeenCalled();
-      expect(mockedUserRepository.update).not.toHaveBeenCalled();
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+      expect(bcrypt.hash).not.toHaveBeenCalled();
+      expect(userRepository.update).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedError if current password is incorrect', async () => {
-      mockedUserRepository.findById.mockResolvedValue(mockUser as any);
-      mockedBcrypt.compare.mockResolvedValue(false as never);
+      (userRepository.findById as jest.Mock).mockResolvedValue(mockUser as any);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false as never);
 
       await expect(
         authService.changePassword(mockUserId, 'WrongPassword123!', newPassword)
       ).rejects.toThrow(UnauthorizedError);
 
-      expect(mockedBcrypt.hash).not.toHaveBeenCalled();
-      expect(mockedUserRepository.update).not.toHaveBeenCalled();
+      expect(bcrypt.hash).not.toHaveBeenCalled();
+      expect(userRepository.update).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestError if new password is same as current', async () => {
-      mockedUserRepository.findById.mockResolvedValue(mockUser as any);
-      mockedBcrypt.compare
+      (userRepository.findById as jest.Mock).mockResolvedValue(mockUser as any);
+      (bcrypt.compare as jest.Mock)
         .mockResolvedValueOnce(true as never) // Current password correct
         .mockResolvedValueOnce(true as never); // New password is same as current
 
@@ -235,51 +233,51 @@ describe('AuthService', () => {
         authService.changePassword(mockUserId, currentPassword, currentPassword)
       ).rejects.toThrow(BadRequestError);
 
-      expect(mockedBcrypt.hash).not.toHaveBeenCalled();
-      expect(mockedUserRepository.update).not.toHaveBeenCalled();
+      expect(bcrypt.hash).not.toHaveBeenCalled();
+      expect(userRepository.update).not.toHaveBeenCalled();
     });
 
     it('should hash the new password before storing', async () => {
       const newHashedPassword = 'hashed-new-password';
 
-      mockedUserRepository.findById.mockResolvedValue(mockUser as any);
-      mockedBcrypt.compare
+      (userRepository.findById as jest.Mock).mockResolvedValue(mockUser as any);
+      (bcrypt.compare as jest.Mock)
         .mockResolvedValueOnce(true as never)
         .mockResolvedValueOnce(false as never);
-      mockedBcrypt.hash.mockResolvedValue(newHashedPassword as never);
-      mockedUserRepository.update.mockResolvedValue({
+      (bcrypt.hash as jest.Mock).mockResolvedValue(newHashedPassword as never);
+      (userRepository.update as jest.Mock).mockResolvedValue({
         ...mockUser,
         password: newHashedPassword,
       } as any);
 
       await authService.changePassword(mockUserId, currentPassword, newPassword);
 
-      expect(mockedBcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
-      expect(mockedUserRepository.update).toHaveBeenCalledWith(mockUserId, {
+      expect(bcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
+      expect(userRepository.update).toHaveBeenCalledWith(mockUserId, {
         password: newHashedPassword,
       });
     });
 
     it('should use bcrypt salt rounds of 10', async () => {
-      mockedUserRepository.findById.mockResolvedValue(mockUser as any);
-      mockedBcrypt.compare
+      (userRepository.findById as jest.Mock).mockResolvedValue(mockUser as any);
+      (bcrypt.compare as jest.Mock)
         .mockResolvedValueOnce(true as never)
         .mockResolvedValueOnce(false as never);
-      mockedBcrypt.hash.mockResolvedValue('hashed' as never);
-      mockedUserRepository.update.mockResolvedValue(mockUser as any);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed' as never);
+      (userRepository.update as jest.Mock).mockResolvedValue(mockUser as any);
 
       await authService.changePassword(mockUserId, currentPassword, newPassword);
 
-      expect(mockedBcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith(newPassword, 10);
     });
 
     it('should handle repository update errors', async () => {
-      mockedUserRepository.findById.mockResolvedValue(mockUser as any);
-      mockedBcrypt.compare
+      (userRepository.findById as jest.Mock).mockResolvedValue(mockUser as any);
+      (bcrypt.compare as jest.Mock)
         .mockResolvedValueOnce(true as never)
         .mockResolvedValueOnce(false as never);
-      mockedBcrypt.hash.mockResolvedValue('hashed' as never);
-      mockedUserRepository.update.mockRejectedValue(new Error('Database error'));
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed' as never);
+      (userRepository.update as jest.Mock).mockRejectedValue(new Error('Database error'));
 
       await expect(
         authService.changePassword(mockUserId, currentPassword, newPassword)
