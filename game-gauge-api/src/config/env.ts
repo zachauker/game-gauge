@@ -14,6 +14,10 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   IGDB_CLIENT_ID: z.string().min(1, 'IGDB Client ID is required'),
   IGDB_CLIENT_SECRET: z.string().min(1, 'IGDB Client Secret is required'),
+  STEAM_API_KEY: z.string().min(1, 'Steam API Key is required'),
+  STEAM_REALM: z.string().url(),
+  STEAM_RETURN_URL: z.string().url(),
+  FRONTEND_STEAM_CALLBACK_URL: z.string().url(),
 });
 
 const parseEnv = () => {

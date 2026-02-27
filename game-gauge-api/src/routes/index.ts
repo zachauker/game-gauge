@@ -6,6 +6,7 @@ import reviewRoutes from './review.routes';
 import igdbRoutes from './igdb.routes';
 import listRoutes from './list.routes';
 import userRoutes from './user.routes';
+import steamAuthRoutes from './steam-auth.routes';
 
 const router = Router();
 
@@ -17,6 +18,8 @@ router.use('/reviews', reviewRoutes);
 router.use('/igdb', igdbRoutes);
 router.use('/lists', listRoutes);
 router.use('/users', userRoutes);
+router.use('/auth', authRoutes);
+router.use('/auth', steamAuthRoutes);
 
 // Health check endpoint for Railway
 router.get('/health', (_req, res) => {

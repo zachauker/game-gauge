@@ -28,15 +28,18 @@ class UserRepository {
    * Create a new user (auth)
    */
   async create(data: {
-    email: string;
+    email?: string;
     username: string;
-    password: string;
+    password?: string;
     firstName?: string;
     lastName?: string;
+    steamId?: string;
+    steamUsername?: string;
+    steamAvatar?: string;
+    steamProfileUrl?: string;
+    avatar?: string;
   }): Promise<User> {
-    return prisma.user.create({
-      data,
-    });
+    return prisma.user.create({ data });
   }
 
   /**
@@ -63,6 +66,15 @@ class UserRepository {
   async findById(id: string): Promise<User | null> {
     return prisma.user.findUnique({
       where: { id },
+    });
+  }
+
+  /** Find user by Steam ID
+   * @param steamId
+   * */
+  async findBySteamId(steamId: string): Promise<User | null> {
+    return prisma.user.findUnique({
+      where: { steamId },
     });
   }
 

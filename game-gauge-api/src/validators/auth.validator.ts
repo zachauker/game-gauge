@@ -22,5 +22,13 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+export const steamCallbackSchema = z.object({
+  steamId: z.string().min(1),
+  username: z.string().optional(),
+  avatar: z.string().url().optional(),
+  profileUrl: z.string().url().optional(),
+});
+
+export type SteamCallbackInput = z.infer<typeof steamCallbackSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
