@@ -66,11 +66,11 @@ export class UserController {
    * GET /api/users/me
    */
   async getCurrentUser(req: Request, res: Response, next: NextFunction) {
-    try {
-      if (!req.user) {
-        throw new Error('User not authenticated');
-      }
+    if (!req.user) {
+      throw Error('User not authenticated');
+    }
 
+    try {
       const profile = await userService.getCurrentUserProfile(req.user.userId);
 
       res.status(200).json({
@@ -87,11 +87,10 @@ export class UserController {
    * PATCH /api/users/me
    */
   async updateProfile(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) {
+      throw new Error('User not authenticated');
+    }
     try {
-      if (!req.user) {
-        throw new Error('User not authenticated');
-      }
-
       const { firstName, lastName, bio, avatar } = req.body;
 
       const updatedUser = await userService.updateProfile(req.user.userId, {
@@ -122,17 +121,17 @@ export class UserController {
    * PATCH /api/users/me/username
    */
   async updateUsername(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { username } = req.body;
+
+    if (!username) {
+      throw new Error('Username is required');
+    }
+
     try {
-      if (!req.user) {
-        throw new Error('User not authenticated');
-      }
-
-      const { username } = req.body;
-
-      if (!username) {
-        throw new Error('Username is required');
-      }
-
       const updatedUser = await userService.updateUsername(req.user.userId, username);
 
       res.status(200).json({
