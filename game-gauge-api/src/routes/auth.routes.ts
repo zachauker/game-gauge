@@ -30,6 +30,6 @@ router.get('/me', authenticate, authController.getCurrentUser.bind(authControlle
  * @desc    Change user password
  * @access  Private
  */
-router.post('/change-password', authenticate, authController.changePassword.bind(authController));
+router.patch('/change-password', authenticate, authController.changePassword.bind(authController));
 
 export default router;
