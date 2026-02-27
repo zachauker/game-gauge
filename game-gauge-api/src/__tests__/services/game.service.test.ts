@@ -51,8 +51,7 @@ describe('GameService', () => {
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(testGame);
 
       // Act & Assert
-      await expect(gameService.create(createGameData))
-        .rejects.toThrow(ConflictError);
+      await expect(gameService.create(createGameData)).rejects.toThrow(ConflictError);
     });
   });
 
@@ -76,8 +75,7 @@ describe('GameService', () => {
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(gameService.findById('invalid-id'))
-        .rejects.toThrow(NotFoundError);
+      await expect(gameService.findById('invalid-id')).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -101,8 +99,7 @@ describe('GameService', () => {
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(gameService.findBySlug('invalid-slug'))
-        .rejects.toThrow(NotFoundError);
+      await expect(gameService.findBySlug('invalid-slug')).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -120,7 +117,14 @@ describe('GameService', () => {
       (prisma.game.count as jest.Mock).mockResolvedValue(2);
 
       // Act
-      const result = await gameService.findAll({ page: 1, limit: 10 });
+      const result = await gameService.findAll({
+        page: 1,
+        limit: 10,
+        sortOrder: 'asc',
+        sortBy: 'title',
+        genre: 'Action',
+        platform: 'PC',
+      });
 
       // Assert
       expect(prisma.game.findMany).toHaveBeenCalled();
@@ -138,6 +142,8 @@ describe('GameService', () => {
         page: 1,
         limit: 10,
         search: 'test',
+        sortOrder: 'asc',
+        sortBy: 'title',
         platform: 'PC',
         genre: 'Action',
       });
@@ -175,8 +181,7 @@ describe('GameService', () => {
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(gameService.update('invalid-id', updateData))
-        .rejects.toThrow(NotFoundError);
+      await expect(gameService.update('invalid-id', updateData)).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -203,8 +208,7 @@ describe('GameService', () => {
       (prisma.game.findUnique as jest.Mock).mockResolvedValue(null);
 
       // Act & Assert
-      await expect(gameService.delete('invalid-id'))
-        .rejects.toThrow(NotFoundError);
+      await expect(gameService.delete('invalid-id')).rejects.toThrow(NotFoundError);
     });
   });
 });

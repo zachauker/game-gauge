@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
-import { registerSchema, loginSchema } from '../validators/auth.validator';
+import { registerSchema, loginSchema, changePasswordSchema } from '../validators/auth.validator';
 
 export class AuthController {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -51,6 +51,33 @@ export class AuthController {
       });
     } catch (error) {
       next(error);
+    }
+  }
+
+  /**
+   * Change user password
+   * POST /api/auth/change-password
+   */
+  async changePassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
+      await authService.changePassword(userId, currentPassword, newPassword);
+
+      res.status(200).json({
+        success: true,
+        message: 'Password changed successfully',
+      });
+    } catch (error) {
+      return next(error);
     }
   }
 }

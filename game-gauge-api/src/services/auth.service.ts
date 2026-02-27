@@ -1,7 +1,7 @@
 import { userRepository } from '../repositories/user.repository';
 import { hashPassword, comparePassword } from '../utils/password.util';
 import { generateToken } from '../utils/jwt.util';
-import { ConflictError, UnauthorizedError } from '../utils/errors.util';
+import { BadRequestError, ConflictError, UnauthorizedError } from '../utils/errors.util';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
 
 export class AuthService {
@@ -72,6 +72,29 @@ export class AuthService {
     }
 
     return userRepository.excludePassword(user);
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedError('User not found');
+    }
+
+    const isCurrentPasswordValid = await comparePassword(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedError('Current password is incorrect');
+    }
+
+    const isSamePassword = await comparePassword(newPassword, user.password);
+    if (isSamePassword) {
+      throw new BadRequestError('New password must be different from current password');
+    }
+
+    const hashedNewPassword = await hashPassword(newPassword);
+
+    await userRepository.update(userId, { password: hashedNewPassword });
+
+    return { message: 'Password changed successfully' };
   }
 }
 
