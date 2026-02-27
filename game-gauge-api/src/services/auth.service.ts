@@ -3,7 +3,6 @@ import { hashPassword, comparePassword } from '../utils/password.util';
 import { generateToken } from '../utils/jwt.util';
 import { BadRequestError, ConflictError, UnauthorizedError } from '../utils/errors.util';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
-import bcrypt from 'bcrypt';
 
 export class AuthService {
   async register(data: RegisterInput) {
@@ -75,37 +74,25 @@ export class AuthService {
     return userRepository.excludePassword(user);
   }
 
-  /**
-   * Change user password
-   */
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    // Get user with password
     const user = await userRepository.findById(userId);
-
     if (!user) {
       throw new UnauthorizedError('User not found');
     }
 
-    // Verify current password
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-
-    if (!isPasswordValid) {
+    const isCurrentPasswordValid = await comparePassword(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
       throw new UnauthorizedError('Current password is incorrect');
     }
 
-    // Check if new password is same as current
-    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    const isSamePassword = await comparePassword(newPassword, user.password);
     if (isSamePassword) {
       throw new BadRequestError('New password must be different from current password');
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedNewPassword = await hashPassword(newPassword);
 
-    // Update password
-    await userRepository.update(userId, {
-      password: hashedPassword,
-    });
+    await userRepository.update(userId, { password: hashedNewPassword });
 
     return { message: 'Password changed successfully' };
   }
