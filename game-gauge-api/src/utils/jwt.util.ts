@@ -4,10 +4,11 @@ import { logger } from './logger.util';
 
 export interface JwtPayload {
   userId: string;
-  email: string;
+  email: string; // May be empty string for Steam-only users
 }
 
 const options = { expiresIn: env.JWT_EXPIRES_IN } as SignOptions;
+
 export const generateToken = (payload: JwtPayload): string => {
   return sign(payload, env.JWT_SECRET, options);
 };

@@ -1,6 +1,6 @@
 import { AuthService } from '../../services/auth.service';
 import { ConflictError, UnauthorizedError, BadRequestError } from '../../utils/errors.util';
-import { testUser } from '../setup';
+import { testUser, testSteamOnlyUser } from '../setup';
 import { userRepository } from '../../repositories/user.repository';
 
 jest.mock('../../utils/password.util', () => ({
@@ -136,6 +136,30 @@ describe('AuthService', () => {
       await expect(authService.login(loginData)).rejects.toThrow(UnauthorizedError);
       await expect(authService.login(loginData)).rejects.toThrow('Invalid credentials');
     });
+
+    it('should throw UnauthorizedError for Steam-only user attempting email/password login', async () => {
+      // A user created via Steam has no password
+      (userRepository.findByEmail as jest.Mock).mockResolvedValue(testSteamOnlyUser);
+
+      await expect(
+        authService.login({ email: 'steam@example.com', password: 'anything' })
+      ).rejects.toThrow(UnauthorizedError);
+      await expect(
+        authService.login({ email: 'steam@example.com', password: 'anything' })
+      ).rejects.toThrow('Steam sign-in');
+    });
+
+    it('should not call comparePassword for Steam-only users', async () => {
+      (userRepository.findByEmail as jest.Mock).mockResolvedValue(testSteamOnlyUser);
+
+      try {
+        await authService.login({ email: 'steam@example.com', password: 'anything' });
+      } catch {
+        // expected to throw
+      }
+
+      expect(comparePassword).not.toHaveBeenCalled();
+    });
   });
 
   describe('getProfile', () => {
@@ -231,6 +255,15 @@ describe('AuthService', () => {
       await expect(
         authService.changePassword(mockUser.id, currentPassword, newPassword)
       ).rejects.toThrow('Database error');
+    });
+
+    it('should return Steam fields for a linked user', async () => {
+      (userRepository.findById as jest.Mock).mockResolvedValue(testSteamOnlyUser);
+
+      const result = await authService.getCurrentUser(testSteamOnlyUser.id);
+
+      expect(result).toHaveProperty('steamId', testSteamOnlyUser.steamId);
+      expect(result).toHaveProperty('steamUsername', testSteamOnlyUser.steamUsername);
     });
   });
 });

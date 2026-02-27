@@ -8,6 +8,10 @@ export interface UserProfile {
   lastName: string | null;
   bio: string | null;
   avatar: string | null;
+  steamId: string | null;
+  steamUsername: string | null;
+  steamAvatar: string | null;
+  steamProfileUrl: string | null;
   createdAt: Date;
 }
 
@@ -25,7 +29,7 @@ export interface UserStats {
 
 class UserRepository {
   /**
-   * Create a new user (auth)
+   * Create a new user (supports both email/password and Steam-only registration)
    */
   async create(data: {
     email?: string;
@@ -39,7 +43,9 @@ class UserRepository {
     steamProfileUrl?: string;
     avatar?: string;
   }): Promise<User> {
-    return prisma.user.create({ data });
+    return prisma.user.create({
+      data,
+    });
   }
 
   /**
@@ -69,9 +75,9 @@ class UserRepository {
     });
   }
 
-  /** Find user by Steam ID
-   * @param steamId
-   * */
+  /**
+   * Find user by Steam ID
+   */
   async findBySteamId(steamId: string): Promise<User | null> {
     return prisma.user.findUnique({
       where: { steamId },
@@ -118,6 +124,10 @@ class UserRepository {
         lastName: true,
         bio: true,
         avatar: true,
+        steamId: true,
+        steamUsername: true,
+        steamAvatar: true,
+        steamProfileUrl: true,
         createdAt: true,
         _count: {
           select: {
@@ -144,7 +154,7 @@ class UserRepository {
       // Total lists count
       prisma.gameList.count({ where: { userId } }),
 
-      // Average rating given
+      // Average rating
       prisma.rating.aggregate({
         where: { userId },
         _avg: { score: true },
@@ -165,11 +175,9 @@ class UserRepository {
       }),
     ]);
 
+    // Public lists count
     const publicListsCount = await prisma.gameList.count({
-      where: {
-        userId,
-        isPublic: true,
-      },
+      where: { userId, isPublic: true },
     });
 
     return {
@@ -281,6 +289,10 @@ class UserRepository {
         bio: true,
         avatar: true,
         createdAt: true,
+        steamId: true,
+        steamUsername: true,
+        steamAvatar: true,
+        steamProfileUrl: true,
         _count: {
           select: {
             ratings: true,
@@ -292,7 +304,5 @@ class UserRepository {
     });
   }
 }
-
-export default UserRepository;
 
 export const userRepository = new UserRepository();
