@@ -149,6 +149,10 @@ export class IGDBService {
         },
       });
 
+      logger.info(
+        `IGDB ${endpoint} status: ${response.status}, data type: ${typeof response.data}, isArray: ${Array.isArray(response.data)}, raw: ${JSON.stringify(response.data).substring(0, 500)}`
+      );
+
       return response.data;
     } catch (error: any) {
       logger.error(`IGDB API error on ${endpoint}:`, error.response?.data || error.message);
@@ -363,7 +367,10 @@ export class IGDBService {
    *   limit 500;
    */
   async queryExternalGames(query: string): Promise<IGDBExternalGame[]> {
-    return this.request<IGDBExternalGame[]>('/external_games', query.trim());
+    logger.info(`queryExternalGames sending query: ${query.trim()}`);
+    const result = this.request<IGDBExternalGame[]>('/external_games', query.trim());
+    logger.info(`queryExternalGames response: ${JSON.stringify(result)}`);
+    return result;
   }
 }
 

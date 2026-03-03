@@ -37,6 +37,10 @@ const recentQuerySchema = z.object({
     .refine((val) => val > 0 && val <= 100, 'Limit must be between 1 and 100'),
 });
 
+const linkGameSchema = z.object({
+  steamAppId: z.number().int().positive('Steam App ID must be a positive integer'),
+});
+
 export class SteamSyncController {
   /**
    * POST /api/steam/sync/library
@@ -84,8 +88,7 @@ export class SteamSyncController {
     try {
       if (!req.user) throw new Error('User not authenticated');
 
-      const { page, limit, sortBy, sortOrder, matchedOnly } =
-        libraryQuerySchema.parse(req.query);
+      const { page, limit, sortBy, sortOrder, matchedOnly } = libraryQuerySchema.parse(req.query);
 
       const result = await steamSyncService.getLibrary(req.user.userId, {
         page,
@@ -114,10 +117,7 @@ export class SteamSyncController {
 
       const { limit } = recentQuerySchema.parse(req.query);
 
-      const result = await steamSyncService.getRecentlyPlayed(
-        req.user.userId,
-        limit
-      );
+      const result = await steamSyncService.getRecentlyPlayed(req.user.userId, limit);
 
       res.status(200).json({
         success: true,
@@ -175,6 +175,29 @@ export class SteamSyncController {
       if (!req.user) throw new Error('User not authenticated');
 
       const result = await steamSyncService.getSyncStatus(req.user.userId);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Add this method inside the SteamSyncController class:
+
+  /**
+   * POST /api/steam/link
+   * Attempt to link a single Steam game to Game Gauge via IGDB lookup.
+   */
+  async linkGame(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) throw new Error('User not authenticated');
+
+      const { steamAppId } = linkGameSchema.parse(req.body);
+
+      const result = await steamSyncService.linkSteamApp(req.user.userId, steamAppId);
 
       res.status(200).json({
         success: true,

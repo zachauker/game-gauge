@@ -5,7 +5,7 @@
 
 @host = http://localhost:3000
 @contentType = application/json
-@auth_token = {{ auth_token }}
+@auth_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4NmM4YmU1ZC1kYzA5LTQyOGUtODY0Yi05NzRmN2YxMWY2NjQiLCJlbWFpbCI6IiIsImlhdCI6MTc3MjQwOTc1OSwiZXhwIjoxNzczMDE0NTU5fQ.dsMd1pdx8-9zpWgrE1JldHu8liL1wznngWLs9QoHOnU
 
 ###############################################
 # Steam Profile

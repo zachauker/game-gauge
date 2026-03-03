@@ -64,4 +64,14 @@ router.get('/wishlist', steamSyncController.getWishlist.bind(steamSyncController
  */
 router.get('/profile', steamSyncController.getProfile.bind(steamSyncController));
 
+/**
+ * @route   POST /api/steam/link
+ * @desc    Attempt to link a single Steam game to Game Gauge.
+ *          Looks up the Steam AppID in IGDB, imports if found,
+ *          and updates the library cache entry.
+ * @access  Private
+ * @body    { steamAppId: number }
+ */
+router.post('/link', steamSyncController.linkGame.bind(steamSyncController));
+
 export default router;

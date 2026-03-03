@@ -282,6 +282,65 @@ export class SteamSyncService {
     return steamLibrarySyncRepository.getSyncStatus(userId);
   }
 
+  /**
+   * Attempt to link a single Steam game to Game Gauge.
+   * Looks up the Steam AppID in IGDB, imports the game if found,
+   * and updates both the mapping cache and the user's library entry.
+   *
+   * Returns the updated library entry with the linked game data.
+   */
+  async linkSteamApp(userId: string, steamAppId: number) {
+    await this.requireSteamId(userId);
+
+    // 1. Check if already mapped in the global cache
+    const existingMapping = await steamMappingRepository.findBySteamAppId(steamAppId);
+    if (existingMapping?.gameId) {
+      // Already linked globally — just update the user's library entry
+      await steamLibrarySyncRepository.upsertGameId(userId, steamAppId, existingMapping.gameId);
+      return steamLibrarySyncRepository.findEntry(userId, steamAppId);
+    }
+
+    // 2. Look up in IGDB via external_games endpoint
+    const igdbMatches = await this.lookupSteamAppsInIGDB([steamAppId]);
+    const igdbId = igdbMatches.get(steamAppId);
+
+    logger.info(
+      `linkSteamApp: Steam AppID ${steamAppId}, IGDB lookup returned: ${igdbId ?? 'no match'}, total matches: ${igdbMatches.size}`
+    );
+    if (!igdbId) {
+      throw new NotFoundError(
+        `Could not find a matching game in IGDB for this Steam app. ` +
+          'The game may be too new, too obscure, or not listed in IGDB.'
+      );
+    }
+
+    // 3. Import into Game Gauge (or get existing)
+    const game = await gameImportService.getOrImportGame(igdbId);
+
+    // 4. Get the game name from the user's library entry for the mapping cache
+    const currentEntry = await steamLibrarySyncRepository.findEntry(userId, steamAppId);
+    const gameName = currentEntry?.name ?? `App ${steamAppId}`;
+
+    // 5. Update the global mapping cache
+    await steamMappingRepository.upsert({
+      steamAppId,
+      igdbId,
+      gameId: game.id,
+      gameName,
+      matched: true,
+    });
+
+    // 6. Update the user's library entry with the game link
+    await steamLibrarySyncRepository.upsertGameId(userId, steamAppId, game.id);
+
+    logger.info(
+      `Linked Steam app ${steamAppId} → IGDB ${igdbId} → Game ${game.id} for user ${userId}`
+    );
+
+    // 7. Return the updated entry with game data included
+    return steamLibrarySyncRepository.findEntry(userId, steamAppId);
+  }
+
   // ──────────────────────────────────────────────
   // Private helpers
   // ──────────────────────────────────────────────
@@ -412,11 +471,11 @@ export class SteamSyncService {
 
     if (steamAppIds.length === 0) return results;
 
-    // IGDB external_games: uid is the Steam AppID (as string), category 1 = Steam
+    // IGDB external_games: uid is the Steam AppID (as string), external source 1 = Steam
     const uids = steamAppIds.map((id) => `"${id}"`).join(',');
     const query = `
-      fields game, uid, category;
-      where category = 1 & uid = (${uids});
+      fields game, uid, external_game_source;
+      where external_game_source = 1 & uid = (${uids});
       limit 500;
     `;
 
@@ -429,7 +488,6 @@ export class SteamSyncService {
           results.set(steamAppId, eg.game);
         }
       }
-
       logger.info(`IGDB external_games: matched ${results.size}/${steamAppIds.length} Steam apps`);
     } catch (error: any) {
       logger.error(`IGDB external_games query failed: ${error.message}`);

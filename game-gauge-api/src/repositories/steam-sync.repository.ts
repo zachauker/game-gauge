@@ -300,6 +300,37 @@ class SteamLibrarySyncRepository {
       },
     });
   }
+
+  /**
+   * Find a single library entry with game data included.
+   */
+  async findEntry(userId: string, steamAppId: number) {
+    return prisma.steamLibrarySync.findUnique({
+      where: { userId_steamAppId: { userId, steamAppId } },
+      include: {
+        game: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            coverImage: true,
+            igdbId: true,
+            genres: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Update just the gameId on a user's library entry.
+   */
+  async upsertGameId(userId: string, steamAppId: number, gameId: string) {
+    return prisma.steamLibrarySync.update({
+      where: { userId_steamAppId: { userId, steamAppId } },
+      data: { gameId },
+    });
+  }
 }
 
 export const steamMappingRepository = new SteamMappingRepository();
