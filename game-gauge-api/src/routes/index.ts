@@ -21,8 +21,6 @@ router.use('/reviews', reviewRoutes);
 router.use('/igdb', igdbRoutes);
 router.use('/lists', listRoutes);
 router.use('/users', userRoutes);
-router.use('/auth', authRoutes);
-router.use('/auth', steamAuthRoutes);
 
 // Health check endpoint for Railway
 router.get('/health', (_req, res) => {

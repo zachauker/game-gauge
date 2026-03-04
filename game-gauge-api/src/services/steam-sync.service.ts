@@ -250,11 +250,12 @@ export class SteamSyncService {
    */
   async getProfile(userId: string): Promise<SteamProfileInfo> {
     const steamId = await this.requireSteamId(userId);
-
+    logger.info(`getProfile: steamId=${steamId} for userId=${userId}`);
     const [summary, level] = await Promise.all([
       steamApiService.getPlayerSummary(steamId),
       steamApiService.getSteamLevel(steamId),
     ]);
+    logger.info(`getProfile: summary=${JSON.stringify(summary)}, level=${level}`);
 
     if (!summary) {
       throw new NotFoundError('Steam profile not found');

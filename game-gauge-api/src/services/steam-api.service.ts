@@ -9,13 +9,13 @@ import { logger } from '../utils/logger.util';
 export interface SteamOwnedGame {
   appid: number;
   name?: string;
-  playtime_forever: number;        // total minutes played
-  playtime_2weeks?: number;        // minutes played in last 2 weeks
+  playtime_forever: number; // total minutes played
+  playtime_2weeks?: number; // minutes played in last 2 weeks
   img_icon_url?: string;
   playtime_windows_forever?: number;
   playtime_mac_forever?: number;
   playtime_linux_forever?: number;
-  rtime_last_played?: number;      // unix timestamp (only returned for own key)
+  rtime_last_played?: number; // unix timestamp (only returned for own key)
 }
 
 export interface SteamOwnedGamesResponse {
@@ -43,7 +43,7 @@ export interface SteamRecentGamesResponse {
 export interface SteamWishlistItem {
   appid: number;
   priority: number;
-  date_added: number;              // unix timestamp
+  date_added: number; // unix timestamp
 }
 
 export interface SteamWishlistResponse {
@@ -59,7 +59,7 @@ export interface SteamPlayerSummary {
   avatar: string;
   avatarmedium: string;
   avatarfull: string;
-  personastate: number;            // 0=Offline, 1=Online, 2=Busy, 3=Away, 4=Snooze, 5=Looking to trade, 6=Looking to play
+  personastate: number; // 0=Offline, 1=Online, 2=Busy, 3=Away, 4=Snooze, 5=Looking to trade, 6=Looking to play
   communityvisibilitystate: number; // 1=Private, 3=Public
   lastlogoff?: number;
   timecreated?: number;
@@ -229,6 +229,9 @@ export class SteamApiService {
    * Get player profile summary (visibility, name, avatar, online status).
    */
   async getPlayerSummary(steamId: string): Promise<SteamPlayerSummary | null> {
+    logger.info(
+      `Steam API key present: ${!!env.STEAM_API_KEY}, length: ${env.STEAM_API_KEY?.length}`
+    );
     try {
       const { data } = await this.client.get<SteamPlayerSummariesResponse>(
         '/ISteamUser/GetPlayerSummaries/v2',
@@ -247,7 +250,16 @@ export class SteamApiService {
 
       return data.response.players[0];
     } catch (error: any) {
-      logger.error(`Steam GetPlayerSummaries failed for ${steamId}:`, error.message);
+      logger.error(
+        `Steam GetPlayerSummaries FULL ERROR: ${JSON.stringify({
+          status: error.response?.status,
+          data: error.response?.data,
+          code: error.code,
+          message: error.message,
+          url: error.config?.url,
+          params: error.config?.params,
+        })}`
+      );
       return null;
     }
   }
