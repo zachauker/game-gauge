@@ -29,7 +29,7 @@ export class AuthService {
     // Generate token
     const token = generateToken({
       userId: user.id,
-      email: user.email,
+      email: user.email || '',
     });
 
     // Return user without password
@@ -46,6 +46,13 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
+    // Steam-only users can't log in with email/password
+    if (!user.password) {
+      throw new UnauthorizedError(
+        'This account uses Steam sign-in. Please use the "Sign in with Steam" button.'
+      );
+    }
+
     // Verify password
     const isValidPassword = await comparePassword(data.password, user.password);
     if (!isValidPassword) {
@@ -55,7 +62,7 @@ export class AuthService {
     // Generate token
     const token = generateToken({
       userId: user.id,
-      email: user.email,
+      email: user.email || '',
     });
 
     // Return user without password
@@ -78,6 +85,12 @@ export class AuthService {
     const user = await userRepository.findById(userId);
     if (!user) {
       throw new UnauthorizedError('User not found');
+    }
+
+    if (!user.password) {
+      throw new UnauthorizedError(
+        'This account uses Steam sign-in. Please use the "Sign in with Steam" button.'
+      );
     }
 
     const isCurrentPasswordValid = await comparePassword(currentPassword, user.password);

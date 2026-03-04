@@ -11,24 +11,33 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String   @unique
-  password  String   // hashed
+  id        String  @id @default(uuid())
+  email     String? @unique // Changed from required to optional
+  username  String  @unique
+  password  String? // Changed from required to optional
   firstName String?
   lastName  String?
   bio       String?
   avatar    String?
+
+  // Steam integration
+  steamId         String? @unique
+  steamUsername   String?
+  steamAvatar     String?
+  steamProfileUrl String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  reviews        Review[]
-  lists          GameList[]
-  ratings        Rating[]
-  helpfulVotes   ReviewHelpful[]
-  
+
+  reviews      Review[]
+  lists        GameList[]
+  ratings      Rating[]
+  helpfulVotes ReviewHelpful[]
+  steamLibrary SteamLibrarySync[]
+
   @@index([email])
   @@index([username])
+  @@index([steamId])
 }
 
 model Game {
@@ -42,18 +51,20 @@ model Game {
   genres      String[]
   platforms   String[]
   coverImage  String?
-  
+
   // External API metadata
-  igdbId      Int?      @unique
-  metacritic  Int?
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  reviews     Review[]
-  ratings     Rating[]
-  listItems   GameListItem[]
-  
+  igdbId     Int? @unique
+  metacritic Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews             Review[]
+  ratings             Rating[]
+  listItems           GameListItem[]
+  steamLibraryEntries SteamLibrarySync[]
+  steamAppMappings    SteamAppMapping[]
+
   @@index([slug])
   @@index([title])
   @@index([igdbId])
@@ -69,12 +80,12 @@ model Review {
   helpfulCount Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  game         Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  rating       Rating?       @relation(fields: [ratingId], references: [id], onDelete: SetNull)
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game         Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  rating       Rating?         @relation(fields: [ratingId], references: [id], onDelete: SetNull)
   helpfulVotes ReviewHelpful[]
-  
+
   @@unique([userId, gameId])
   @@index([gameId])
   @@index([userId])
@@ -87,10 +98,10 @@ model ReviewHelpful {
   userId    String
   reviewId  String
   createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
   @@unique([userId, reviewId])
   @@index([reviewId])
   @@index([userId])
@@ -98,16 +109,16 @@ model ReviewHelpful {
 
 model Rating {
   id        String   @id @default(uuid())
-  score     Int      // 1-10 scale
+  score     Int // 1-10 scale
   userId    String
   gameId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  review    Review?  // One-to-one with Review
-  
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game   Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  review Review? // One-to-one with Review
+
   @@unique([userId, gameId])
   @@index([gameId])
   @@index([userId])
@@ -121,10 +132,10 @@ model GameList {
   userId      String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items       GameListItem[]
-  
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items GameListItem[]
+
   @@index([userId])
   @@index([isPublic])
 }
@@ -136,11 +147,70 @@ model GameListItem {
   order     Int      @default(0)
   notes     String?
   createdAt DateTime @default(now())
-  
-  list      GameList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  
+
+  list GameList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  game Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
   @@unique([listId, gameId])
   @@index([listId])
   @@index([order])
+}
+
+// ============================================================
+// PASTE the models below into your prisma/schema.prisma file
+// after the existing GameListItem model.
+// Also add the two relation fields to User and Game as noted.
+// ============================================================
+
+// ── Add these relation fields to the existing User model ──
+//   steamLibrary  SteamLibrarySync[]
+
+// ── Add these relation fields to the existing Game model ──
+//   steamLibraryEntries  SteamLibrarySync[]
+//   steamAppMappings     SteamAppMapping[]
+
+// ──────────────────────────────────────────────────────
+// Global Steam AppID → IGDB / Game Gauge mapping cache
+// ──────────────────────────────────────────────────────
+model SteamAppMapping {
+  id          String   @id @default(uuid())
+  steamAppId  Int      @unique
+  igdbId      Int?
+  gameId      String?
+  gameName    String
+  matched     Boolean  @default(false)
+  lastChecked DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  game Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@index([igdbId])
+}
+
+// ──────────────────────────────────────────────────────
+// Per-user Steam library cache
+// ──────────────────────────────────────────────────────
+model SteamLibrarySync {
+  id              String    @id @default(uuid())
+  userId          String
+  steamAppId      Int
+  gameId          String?
+  name            String
+  playtimeForever Int       @default(0) // total minutes
+  playtimeRecent  Int       @default(0) // minutes in last 2 weeks
+  iconUrl         String?
+  lastPlayed      DateTime?
+  lastSynced      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, steamAppId])
+  @@index([userId])
+  @@index([gameId])
+  @@index([playtimeForever])
+  @@index([playtimeRecent])
 }

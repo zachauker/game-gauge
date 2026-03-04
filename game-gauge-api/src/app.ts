@@ -6,6 +6,7 @@ import { logger } from './utils/logger.util';
 import { errorHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/requestLogger.middleware';
 import routes from './routes';
+import passport from 'passport';
 
 const app: Application = express();
 
@@ -60,6 +61,9 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
+/// Passport configuration
+app.use(passport.initialize());
 
 // Body parsing middleware
 app.use(express.json());

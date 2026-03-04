@@ -78,6 +78,13 @@ export interface IGDBSearchResult {
   }>;
 }
 
+export interface IGDBExternalGame {
+  id: number;
+  game: number; // IGDB game ID
+  category: number; // 1 = Steam, 5 = GOG, 11 = Epic, etc.
+  uid: string; // External ID (Steam AppID as string)
+}
+
 /**
  * IGDB API Service
  * Wrapper for Twitch IGDB API v4
@@ -141,6 +148,10 @@ export class IGDBService {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      logger.info(
+        `IGDB ${endpoint} status: ${response.status}, data type: ${typeof response.data}, isArray: ${Array.isArray(response.data)}, raw: ${JSON.stringify(response.data).substring(0, 500)}`
+      );
 
       return response.data;
     } catch (error: any) {
@@ -339,6 +350,27 @@ export class IGDBService {
   extractPublishers(game: IGDBGame): string[] {
     if (!game.involved_companies) return [];
     return game.involved_companies.filter((ic) => ic.publisher).map((ic) => ic.company.name);
+  }
+
+  /**
+   * Query the IGDB external_games endpoint.
+   * Used to map Steam AppIDs (and other store IDs) to IGDB game IDs.
+   *
+   * Category reference:
+   *   1 = Steam, 5 = GOG, 10 = YouTube, 11 = Microsoft Store,
+   *   13 = Apple App Store, 14 = Twitch, 15 = Android, 20 = Amazon,
+   *   26 = Epic Game Store, 28 = Oculus, 36 = Xbox Marketplace
+   *
+   * Example query:
+   *   fields game, uid, category;
+   *   where category = 1 & uid = ("730", "570", "440");
+   *   limit 500;
+   */
+  async queryExternalGames(query: string): Promise<IGDBExternalGame[]> {
+    logger.info(`queryExternalGames sending query: ${query.trim()}`);
+    const result = this.request<IGDBExternalGame[]>('/external_games', query.trim());
+    logger.info(`queryExternalGames response: ${JSON.stringify(result)}`);
+    return result;
   }
 }
 

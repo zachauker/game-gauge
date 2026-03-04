@@ -6,12 +6,16 @@ import reviewRoutes from './review.routes';
 import igdbRoutes from './igdb.routes';
 import listRoutes from './list.routes';
 import userRoutes from './user.routes';
+import steamAuthRoutes from './steam-auth.routes';
+import steamSyncRoutes from './steam-sync.routes';
 
 const router = Router();
 
 // Mount routes
 router.use('/auth', authRoutes);
 router.use('/games', gameRoutes);
+router.use('/auth', steamAuthRoutes);
+router.use('/steam', steamSyncRoutes);
 router.use('/ratings', ratingRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/igdb', igdbRoutes);

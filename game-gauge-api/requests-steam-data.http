@@ -1,0 +1,72 @@
+###############################################
+# Steam Data Integration - Manual Tests
+# Requires: Steam account linked + auth token
+###############################################
+
+@host = http://localhost:3000
+@contentType = application/json
+@auth_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4NmM4YmU1ZC1kYzA5LTQyOGUtODY0Yi05NzRmN2YxMWY2NjQiLCJlbWFpbCI6IiIsImlhdCI6MTc3MjQwOTc1OSwiZXhwIjoxNzczMDE0NTU5fQ.dsMd1pdx8-9zpWgrE1JldHu8liL1wznngWLs9QoHOnU
+
+###############################################
+# Steam Profile
+###############################################
+
+### Get Steam profile summary (online status, level, visibility)
+GET {{host}}/api/steam/profile
+Authorization: Bearer {{auth_token}}
+
+###############################################
+# Library Sync
+###############################################
+
+### Get sync status (check before/after syncing)
+GET {{host}}/api/steam/sync/status
+Authorization: Bearer {{auth_token}}
+
+### Trigger full library sync (can take 10-30s for large libraries)
+POST {{host}}/api/steam/sync/library
+Authorization: Bearer {{auth_token}}
+
+### Sync only recently played games (much faster)
+POST {{host}}/api/steam/sync/recent
+Authorization: Bearer {{auth_token}}
+
+###############################################
+# Library Data (from cache — run sync first)
+###############################################
+
+### Get full Steam library (default: sorted by playtime desc)
+GET {{host}}/api/steam/library
+Authorization: Bearer {{auth_token}}
+
+### Get library page 2, 25 per page
+GET {{host}}/api/steam/library?page=2&limit=25
+Authorization: Bearer {{auth_token}}
+
+### Get library sorted by name (alphabetical)
+GET {{host}}/api/steam/library?sortBy=name&sortOrder=asc
+Authorization: Bearer {{auth_token}}
+
+### Get library sorted by recent playtime
+GET {{host}}/api/steam/library?sortBy=playtimeRecent&sortOrder=desc
+Authorization: Bearer {{auth_token}}
+
+### Get only matched games (games that exist in Game Gauge)
+GET {{host}}/api/steam/library?matchedOnly=true
+Authorization: Bearer {{auth_token}}
+
+### Get recently played games
+GET {{host}}/api/steam/recent
+Authorization: Bearer {{auth_token}}
+
+### Get recently played (limit to 5)
+GET {{host}}/api/steam/recent?limit=5
+Authorization: Bearer {{auth_token}}
+
+###############################################
+# Wishlist (live fetch)
+###############################################
+
+### Get Steam wishlist
+GET {{host}}/api/steam/wishlist
+Authorization: Bearer {{auth_token}}

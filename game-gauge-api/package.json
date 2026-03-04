@@ -36,6 +36,8 @@
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "passport": "^0.7.0",
+    "passport-steam": "^1.0.18",
     "winston": "^3.17.0",
     "zod": "^3.23.8"
   },
@@ -46,6 +48,8 @@
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.5",
+    "@types/passport": "^1.0.17",
+    "@types/passport-steam": "^1.0.6",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "@typescript-eslint/parser": "^8.19.1",

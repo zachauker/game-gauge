@@ -35,6 +35,13 @@ jest.mock('../config/database', () => ({
       delete: jest.fn(),
       count: jest.fn(),
     },
+    reviewHelpful: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
     gameList: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -64,7 +71,11 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-// Global test utilities
+// ──────────────────────────────────────────────
+// Shared test fixtures
+// ──────────────────────────────────────────────
+
+/** A standard email/password user (no Steam linked) */
 export const testUser = {
   id: 'test-user-id',
   email: 'test@example.com',
@@ -74,8 +85,56 @@ export const testUser = {
   lastName: 'User',
   avatar: null,
   bio: null,
+  steamId: null,
+  steamUsername: null,
+  steamAvatar: null,
+  steamProfileUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
+};
+
+/** A user who signed up via Steam (no email/password) */
+export const testSteamOnlyUser = {
+  id: 'steam-only-user-id',
+  email: null,
+  username: 'steam_gamer',
+  password: null,
+  firstName: null,
+  lastName: null,
+  avatar: 'https://avatars.steamstatic.com/abc123_full.jpg',
+  bio: null,
+  steamId: '76561198000000001',
+  steamUsername: 'SteamGamer',
+  steamAvatar: 'https://avatars.steamstatic.com/abc123_full.jpg',
+  steamProfileUrl: 'https://steamcommunity.com/profiles/76561198000000001',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+/** A user who has both email/password AND Steam linked */
+export const testLinkedUser = {
+  id: 'linked-user-id',
+  email: 'linked@example.com',
+  username: 'linkeduser',
+  password: 'hashedPassword456',
+  firstName: 'Linked',
+  lastName: 'User',
+  avatar: 'https://example.com/custom-avatar.jpg',
+  bio: 'I play games',
+  steamId: '76561198000000002',
+  steamUsername: 'LinkedGamer',
+  steamAvatar: 'https://avatars.steamstatic.com/def456_full.jpg',
+  steamProfileUrl: 'https://steamcommunity.com/profiles/76561198000000002',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+/** Reusable Steam profile data (as returned by the passport strategy) */
+export const testSteamProfile = {
+  steamId: '76561198000000099',
+  username: 'NewSteamUser',
+  avatar: 'https://avatars.steamstatic.com/new_full.jpg',
+  profileUrl: 'https://steamcommunity.com/profiles/76561198000000099',
 };
 
 export const testGame = {
