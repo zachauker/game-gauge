@@ -4,15 +4,19 @@ import { authenticate, optionalAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
+// ─── Static named routes (must come before /:id) ─────────────────────────────
+
 /**
- * Public routes
+ * @route   GET /api/lists/defaults
+ * @desc    Get the three default list IDs for the current user
+ * @access  Private
  */
+router.get('/defaults', authenticate, listController.getDefaults.bind(listController));
 
 /**
  * @route   GET /api/lists/public
  * @desc    Get public lists (discovery)
  * @access  Public
- * @note    Must be before /:id to avoid matching "public" as an ID
  */
 router.get('/public', listController.getPublicLists.bind(listController));
 
@@ -20,60 +24,52 @@ router.get('/public', listController.getPublicLists.bind(listController));
  * @route   GET /api/lists/popular
  * @desc    Get popular lists (by item count)
  * @access  Public
- * @note    Must be before /:id to avoid matching "popular" as an ID
  */
 router.get('/popular', listController.getPopularLists.bind(listController));
 
 /**
- * Protected routes (authentication required)
- */
-
-/**
  * @route   GET /api/lists/me
- * @desc    Get all lists by current user
+ * @desc    Get all lists for the current user
  * @access  Private
- * @note    Must be before /:id to avoid matching "me" as an ID
  */
 router.get('/me', authenticate, listController.getMyLists.bind(listController));
+
+// ─── User-scoped lists ────────────────────────────────────────────────────────
 
 /**
  * @route   GET /api/lists/user/:userId
  * @desc    Get all lists by a specific user
- * @access  Public (shows public lists only unless owner)
+ * @access  Public (public lists only unless owner)
  */
 router.get('/user/:userId', optionalAuth, listController.getUserLists.bind(listController));
 
+// ─── Single list CRUD ─────────────────────────────────────────────────────────
+
 /**
  * @route   GET /api/lists/:id
- * @desc    Get a single list by ID
- * @access  Public (if list is public) / Private (if list is private and user is owner)
+ * @access  Public (if public) / Private (if private, owner only)
  */
 router.get('/:id', optionalAuth, listController.findById.bind(listController));
 
 /**
  * @route   POST /api/lists
- * @desc    Create a new list
  * @access  Private
  */
 router.post('/', authenticate, listController.create.bind(listController));
 
 /**
  * @route   PATCH /api/lists/:id
- * @desc    Update a list
  * @access  Private (owner only)
  */
 router.patch('/:id', authenticate, listController.update.bind(listController));
 
 /**
  * @route   DELETE /api/lists/:id
- * @desc    Delete a list
  * @access  Private (owner only)
  */
 router.delete('/:id', authenticate, listController.delete.bind(listController));
 
-/**
- * List item management routes
- */
+// ─── List item management ─────────────────────────────────────────────────────
 
 /**
  * @route   POST /api/lists/:id/games
@@ -91,10 +87,25 @@ router.delete('/:id/games/:gameId', authenticate, listController.removeGame.bind
 
 /**
  * @route   PATCH /api/lists/:id/games/:gameId
- * @desc    Update a list item (notes, order)
+ * @desc    Update a list item (notes, order, progressPct, progressNote)
  * @access  Private (owner only)
  */
-router.patch('/:id/games/:gameId', authenticate, listController.updateListItem.bind(listController));
+router.patch(
+  '/:id/games/:gameId',
+  authenticate,
+  listController.updateListItem.bind(listController)
+);
+
+/**
+ * @route   POST /api/lists/:id/games/:gameId/sync-achievements
+ * @desc    Refresh Steam achievement cache for a Currently Playing item
+ * @access  Private (owner only, Steam account required)
+ */
+router.post(
+  '/:id/games/:gameId/sync-achievements',
+  authenticate,
+  listController.syncAchievements.bind(listController)
+);
 
 /**
  * @route   POST /api/lists/:id/reorder

@@ -3,6 +3,7 @@ import { hashPassword, comparePassword } from '../utils/password.util';
 import { generateToken } from '../utils/jwt.util';
 import { BadRequestError, ConflictError, UnauthorizedError } from '../utils/errors.util';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
+import { provisionDefaultLists } from './list-provisioning.service';
 
 export class AuthService {
   async register(data: RegisterInput) {
@@ -25,6 +26,9 @@ export class AuthService {
       ...data,
       password: hashedPassword,
     });
+
+    // Provision default lists (Wishlist, Currently Playing, Completed)
+    await provisionDefaultLists(user.id);
 
     // Generate token
     const token = generateToken({
@@ -93,21 +97,17 @@ export class AuthService {
       );
     }
 
-    const isCurrentPasswordValid = await comparePassword(currentPassword, user.password);
-    if (!isCurrentPasswordValid) {
+    const isValidPassword = await comparePassword(currentPassword, user.password);
+    if (!isValidPassword) {
       throw new UnauthorizedError('Current password is incorrect');
     }
 
-    const isSamePassword = await comparePassword(newPassword, user.password);
-    if (isSamePassword) {
+    if (currentPassword === newPassword) {
       throw new BadRequestError('New password must be different from current password');
     }
 
-    const hashedNewPassword = await hashPassword(newPassword);
-
-    await userRepository.update(userId, { password: hashedNewPassword });
-
-    return { message: 'Password changed successfully' };
+    const hashedPassword = await hashPassword(newPassword);
+    await userRepository.update(userId, { password: hashedPassword });
   }
 }
 
