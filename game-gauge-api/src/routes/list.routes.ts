@@ -114,4 +114,12 @@ router.post(
  */
 router.post('/:id/reorder', authenticate, listController.reorderItems.bind(listController));
 
+/**
+ * @route   POST /api/lists/completed/add
+ * @desc    Mark a game as completed — moves it from Currently Playing,
+ *          records completionType, and optionally saves rating + review
+ * @access  Private
+ */
+router.post('/completed/add', authenticate, listController.completeGame.bind(listController));
+
 export default router;

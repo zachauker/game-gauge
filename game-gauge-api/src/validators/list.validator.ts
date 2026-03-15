@@ -1,4 +1,6 @@
 import { z } from 'zod';
+export const COMPLETION_TYPES = ['beaten', '100pct', 'abandoned', 'endless'] as const;
+export type CompletionType = (typeof COMPLETION_TYPES)[number];
 
 export const createListSchema = z.object({
   name: z
@@ -84,6 +86,36 @@ export const getListsQuerySchema = z.object({
   userId: z.string().uuid().optional(),
 });
 
+export const completeGameSchema = z.object({
+  gameId: z.string().uuid('Invalid game ID'),
+
+  completionType: z.enum(COMPLETION_TYPES, {
+    errorMap: () => ({
+      message: 'completionType must be one of: beaten, 100pct, abandoned, endless',
+    }),
+  }),
+
+  // Optional rating (1–10)
+  rating: z
+    .number()
+    .int('Rating must be a whole number')
+    .min(1, 'Rating must be at least 1')
+    .max(10, 'Rating must be at most 10')
+    .optional(),
+
+  // Optional review
+  review: z
+    .object({
+      content: z
+        .string()
+        .min(10, 'Review must be at least 10 characters')
+        .max(5000, 'Review must be less than 5000 characters')
+        .trim(),
+      spoilers: z.boolean().default(false),
+    })
+    .optional(),
+});
+
 // Type exports
 export type CreateListInput = z.infer<typeof createListSchema>;
 export type UpdateListInput = z.infer<typeof updateListSchema>;
@@ -91,3 +123,4 @@ export type AddGameToListInput = z.infer<typeof addGameToListSchema>;
 export type UpdateListItemInput = z.infer<typeof updateListItemSchema>;
 export type ReorderListItemsInput = z.infer<typeof reorderListItemsSchema>;
 export type GetListsQuery = z.infer<typeof getListsQuerySchema>;
+export type CompleteGameInput = z.infer<typeof completeGameSchema>;

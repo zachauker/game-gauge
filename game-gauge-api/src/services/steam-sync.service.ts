@@ -214,22 +214,117 @@ export class SteamSyncService {
   }
 
   /**
-   * Get the user's Steam wishlist (fetched live — not cached).
+   * Get the user's Steam wishlist with full IGDB matching.
+   *
+   * For items not yet in SteamAppMapping:
+   *   1. Batch-lookup against IGDB external_games
+   *   2. Import matched games into Game Gauge
+   *   3. Fetch names from Steam Store API for anything still unmatched
+   *   4. Persist all results to SteamAppMapping cache
+   *
+   * This means the first call may be slow for a large wishlist with no prior
+   * library sync, but subsequent calls will be fast (cache hits).
    */
   async getWishlist(userId: string) {
     const steamId = await this.requireSteamId(userId);
 
     const wishlistItems = await steamApiService.getWishlist(steamId);
+    if (wishlistItems.length === 0) return [];
 
-    if (wishlistItems.length === 0) {
-      return [];
-    }
-
-    // Try to match wishlist items to known mappings
     const appIds = wishlistItems.map((item) => item.appid);
+
+    // ── Step 1: Check existing mapping cache ──────────────────────────────
     const existingMappings = await steamMappingRepository.findManyBySteamAppIds(appIds);
     const mappingMap = new Map(existingMappings.map((m) => [m.steamAppId, m]));
 
+    const unmappedAppIds = appIds.filter((id) => !mappingMap.has(id));
+
+    logger.info(
+      `Wishlist: ${appIds.length} total, ${mappingMap.size} cached, ${unmappedAppIds.length} to look up`
+    );
+
+    // ── Step 2: IGDB lookup for unmapped items ────────────────────────────
+    if (unmappedAppIds.length > 0) {
+      const igdbMatches = await this.lookupSteamAppsInIGDB(unmappedAppIds);
+
+      // Step 3: Import matched games and build mapping rows
+      const mappingsToSave: Array<{
+        steamAppId: number;
+        igdbId: number | null;
+        gameId: string | null;
+        gameName: string;
+        matched: boolean;
+      }> = [];
+
+      // Collect appIds still needing names (no IGDB match)
+      const stillUnnamedAppIds: number[] = [];
+
+      for (const appId of unmappedAppIds) {
+        const igdbId = igdbMatches.get(appId) ?? null;
+
+        if (igdbId) {
+          try {
+            const game = await gameImportService.getOrImportGame(igdbId);
+            mappingsToSave.push({
+              steamAppId: appId,
+              igdbId,
+              gameId: game.id,
+              gameName: game.title,
+              matched: true,
+            });
+            // Update the in-memory map so the response builder below sees it
+            mappingMap.set(appId, {
+              steamAppId: appId,
+              igdbId,
+              gameId: game.id,
+              gameName: game.title,
+              matched: true,
+            } as any);
+          } catch (error: any) {
+            logger.warn(
+              `Wishlist: failed to import IGDB game ${igdbId} for appId ${appId}: ${error.message}`
+            );
+            stillUnnamedAppIds.push(appId);
+          }
+        } else {
+          stillUnnamedAppIds.push(appId);
+        }
+      }
+
+      // ── Step 4: Steam Store name fetch for truly unmatched items ─────────
+      if (stillUnnamedAppIds.length > 0) {
+        const storeNames = await steamApiService.getAppNames(stillUnnamedAppIds);
+
+        for (const appId of stillUnnamedAppIds) {
+          const name = storeNames.get(appId) ?? `App ${appId}`;
+          mappingsToSave.push({
+            steamAppId: appId,
+            igdbId: null,
+            gameId: null,
+            gameName: name,
+            matched: false,
+          });
+          mappingMap.set(appId, {
+            steamAppId: appId,
+            igdbId: null,
+            gameId: null,
+            gameName: name,
+            matched: false,
+          } as any);
+        }
+      }
+
+      // ── Step 5: Persist all new mappings ──────────────────────────────────
+      if (mappingsToSave.length > 0) {
+        await steamMappingRepository.upsertMany(mappingsToSave);
+        logger.info(
+          `Wishlist: saved ${mappingsToSave.length} new mappings ` +
+            `(${mappingsToSave.filter((m) => m.matched).length} matched)`
+        );
+      }
+    }
+
+    // ── Step 6: Build and return enriched response ────────────────────────
     return wishlistItems.map((item) => {
       const mapping = mappingMap.get(item.appid);
       return {

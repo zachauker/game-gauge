@@ -17,7 +17,10 @@ import {
   UpdateListItemInput,
   ReorderListItemsInput,
   GetListsQuery,
+  CompleteGameInput,
 } from '../validators/list.validator';
+import { reviewRepository } from '../repositories/review.repository';
+import { ratingRepository } from '../repositories/rating.repository';
 
 // How long to use a cached achievement snapshot before re-fetching (ms)
 const ACHIEVEMENT_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -297,6 +300,103 @@ export class ListService {
    */
   async getPopularLists(limit: number = 10) {
     return listRepository.findPopularLists(limit);
+  }
+
+  /**
+   * Mark a game as completed.
+   *
+   * In a single transaction this method:
+   *   1. Ensures the game exists in Game Gauge
+   *   2. Finds the user's Completed default list
+   *   3. Removes the game from Currently Playing (if present)
+   *   4. Upserts the game into the Completed list with completionType + completedAt
+   *   5. Optionally upserts a rating
+   *   6. Optionally creates a review (skipped if one already exists)
+   */
+  async completeGame(userId: string, data: CompleteGameInput) {
+    const { gameId, completionType, rating, review } = data;
+
+    // Verify game exists
+    const game = await gameRepository.findById(gameId);
+    if (!game) throw new NotFoundError('Game not found');
+
+    // Find the user's Completed and Currently Playing default lists
+    const [completedList, playingList] = await Promise.all([
+      prisma.gameList.findFirst({
+        where: { userId, listType: 'completed', isDefault: true },
+      }),
+      prisma.gameList.findFirst({
+        where: { userId, listType: 'playing', isDefault: true },
+      }),
+    ]);
+
+    if (!completedList) {
+      throw new NotFoundError(
+        'Completed list not found. Try logging out and back in to re-provision your default lists.'
+      );
+    }
+
+    // Run everything atomically
+    await prisma.$transaction(async (tx) => {
+      // 1. Remove from Currently Playing if present
+      if (playingList) {
+        await tx.gameListItem.deleteMany({
+          where: { listId: playingList.id, gameId },
+        });
+      }
+
+      // 2. Upsert into Completed list
+      const maxOrder = await tx.gameListItem.aggregate({
+        where: { listId: completedList.id },
+        _max: { order: true },
+      });
+      const nextOrder = (maxOrder._max.order ?? -1) + 1;
+
+      await tx.gameListItem.upsert({
+        where: { listId_gameId: { listId: completedList.id, gameId } },
+        create: {
+          listId: completedList.id,
+          gameId,
+          order: nextOrder,
+          completionType,
+          completedAt: new Date(),
+        },
+        update: {
+          completionType,
+          completedAt: new Date(),
+        },
+      });
+    });
+
+    // 3. Upsert rating (outside transaction — idempotent by design)
+    let savedRating = null;
+    if (rating !== undefined) {
+      savedRating = await ratingRepository.upsert(userId, gameId, rating);
+    }
+
+    // 4. Create review if provided and user hasn't reviewed yet
+    let savedReview = null;
+    if (review) {
+      const existingReview = await reviewRepository.findByUserAndGame(userId, gameId);
+      if (!existingReview) {
+        const ratingId = savedRating?.id;
+        savedReview = await reviewRepository.create({
+          content: review.content,
+          userId,
+          gameId,
+          spoilers: review.spoilers,
+          ...(ratingId ? { ratingId } : {}),
+        });
+      }
+    }
+
+    return {
+      message: 'Game marked as completed',
+      completionType,
+      completedListId: completedList.id,
+      rating: savedRating,
+      review: savedReview,
+    };
   }
 }
 

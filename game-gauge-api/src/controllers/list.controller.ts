@@ -7,7 +7,10 @@ import {
   updateListItemSchema,
   reorderListItemsSchema,
   getListsQuerySchema,
+  completeGameSchema,
 } from '../validators/list.validator';
+/** req.params values are always strings in Express — this just satisfies TS */
+const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);
 
 export class ListController {
   /**
@@ -15,9 +18,8 @@ export class ListController {
    * POST /api/lists
    */
   async create(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
       const data = createListSchema.parse(req.body);
       const list = await listService.create(req.user.userId, data);
 
@@ -33,8 +35,7 @@ export class ListController {
    */
   async findById(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
-      const list = await listService.findById(id, req.user?.userId);
+      const list = await listService.findById(param(req.params.id), req.user?.userId);
 
       res.status(200).json({ success: true, data: list });
     } catch (error) {
@@ -47,9 +48,8 @@ export class ListController {
    * GET /api/lists/defaults
    */
   async getDefaults(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
       const defaults = await listService.getDefaultLists(req.user.userId);
       res.status(200).json({ success: true, data: defaults });
     } catch (error) {
@@ -62,9 +62,8 @@ export class ListController {
    * GET /api/lists/me
    */
   async getMyLists(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
       const query = getListsQuerySchema.parse(req.query);
       const result = await listService.getUserLists(req.user.userId, query, req.user.userId);
 
@@ -84,9 +83,12 @@ export class ListController {
    */
   async getUserLists(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId } = req.params;
       const query = getListsQuerySchema.parse(req.query);
-      const result = await listService.getUserLists(userId, query, req.user?.userId);
+      const result = await listService.getUserLists(
+        param(req.params.userId),
+        query,
+        req.user?.userId
+      );
 
       res.status(200).json({
         success: true,
@@ -121,7 +123,7 @@ export class ListController {
    * Get popular lists
    * GET /api/lists/popular
    */
-  async getPopularLists(req: Request, res: Response, next: NextFunction) {
+  async getPopularLists(_req: Request, res: Response, next: NextFunction) {
     try {
       const lists = await listService.getPopularLists();
       res.status(200).json({ success: true, data: lists });
@@ -135,12 +137,10 @@ export class ListController {
    * PATCH /api/lists/:id
    */
   async update(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
-      const { id } = req.params;
       const data = updateListSchema.parse(req.body);
-      const list = await listService.update(id, req.user.userId, data);
+      const list = await listService.update(param(req.params.id), req.user.userId, data);
 
       res.status(200).json({ success: true, data: list });
     } catch (error) {
@@ -153,11 +153,9 @@ export class ListController {
    * DELETE /api/lists/:id
    */
   async delete(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
-      const { id } = req.params;
-      const result = await listService.delete(id, req.user.userId);
+      const result = await listService.delete(param(req.params.id), req.user.userId);
 
       res.status(200).json({ success: true, data: result });
     } catch (error) {
@@ -170,12 +168,10 @@ export class ListController {
    * POST /api/lists/:id/games
    */
   async addGame(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
-      const { id } = req.params;
       const data = addGameToListSchema.parse(req.body);
-      const listItem = await listService.addGameToList(id, req.user.userId, data);
+      const listItem = await listService.addGameToList(param(req.params.id), req.user.userId, data);
 
       res.status(201).json({ success: true, data: listItem });
     } catch (error) {
@@ -188,11 +184,13 @@ export class ListController {
    * DELETE /api/lists/:id/games/:gameId
    */
   async removeGame(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
-      const { id, gameId } = req.params;
-      const result = await listService.removeGameFromList(id, gameId, req.user.userId);
+      const result = await listService.removeGameFromList(
+        param(req.params.id),
+        param(req.params.gameId),
+        req.user.userId
+      );
 
       res.status(200).json({ success: true, data: result });
     } catch (error) {
@@ -205,12 +203,15 @@ export class ListController {
    * PATCH /api/lists/:id/games/:gameId
    */
   async updateListItem(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
-      const { id, gameId } = req.params;
       const data = updateListItemSchema.parse(req.body);
-      const listItem = await listService.updateListItem(id, gameId, req.user.userId, data);
+      const listItem = await listService.updateListItem(
+        param(req.params.id),
+        param(req.params.gameId),
+        req.user.userId,
+        data
+      );
 
       res.status(200).json({ success: true, data: listItem });
     } catch (error) {
@@ -223,11 +224,13 @@ export class ListController {
    * POST /api/lists/:id/games/:gameId/sync-achievements
    */
   async syncAchievements(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
-      const { id, gameId } = req.params;
-      const listItem = await listService.syncAchievements(id, gameId, req.user.userId);
+      const listItem = await listService.syncAchievements(
+        param(req.params.id),
+        param(req.params.gameId),
+        req.user.userId
+      );
 
       res.status(200).json({ success: true, data: listItem });
     } catch (error) {
@@ -240,12 +243,10 @@ export class ListController {
    * POST /api/lists/:id/reorder
    */
   async reorderItems(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
     try {
-      if (!req.user) throw new Error('User not authenticated');
-
-      const { id } = req.params;
       const data = reorderListItemsSchema.parse(req.body);
-      const result = await listService.reorderItems(id, req.user.userId, data);
+      const result = await listService.reorderItems(param(req.params.id), req.user.userId, data);
 
       res.status(200).json({ success: true, data: result });
     } catch (error) {
@@ -259,10 +260,25 @@ export class ListController {
    */
   async getListsContainingGame(req: Request, res: Response, next: NextFunction) {
     try {
-      const { gameId } = req.params;
-      const lists = await listService.getListsContainingGame(gameId);
+      const lists = await listService.getListsContainingGame(param(req.params.gameId));
 
       res.status(200).json({ success: true, data: lists });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Mark a game as completed
+   * POST /api/lists/completed/add
+   */
+  async completeGame(req: Request, res: Response, next: NextFunction) {
+    if (!req.user) throw new Error('User not authenticated');
+    try {
+      const data = completeGameSchema.parse(req.body);
+      const result = await listService.completeGame(req.user.userId, data);
+
+      res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

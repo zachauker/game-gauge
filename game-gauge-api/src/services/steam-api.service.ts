@@ -330,6 +330,52 @@ export class SteamApiService {
     };
     return statuses[state] ?? 'Unknown';
   }
+
+  /**
+   * Fetch app names from the Steam Store API for a batch of AppIDs.
+   *
+   * Uses the storefront /api/appdetails endpoint with filters=basic to keep
+   * responses small. Accepts up to ~200 IDs per call before responses become
+   * unreliable — caller should batch if needed.
+   *
+   * Returns a Map<appId, name>. Missing / failed lookups are omitted.
+   */
+  async getAppNames(appIds: number[]): Promise<Map<number, string>> {
+    const result = new Map<number, string>();
+    if (appIds.length === 0) return result;
+
+    // Steam store API is on a different base URL — use a plain axios call
+    const BATCH_SIZE = 100;
+
+    for (let i = 0; i < appIds.length; i += BATCH_SIZE) {
+      const batch = appIds.slice(i, i + BATCH_SIZE);
+      try {
+        const { data } = await axios.get('https://store.steampowered.com/api/appdetails', {
+          params: {
+            appids: batch.join(','),
+            filters: 'basic',
+          },
+          timeout: 15_000,
+        });
+
+        for (const appId of batch) {
+          const entry = data[String(appId)];
+          if (entry?.success && entry.data?.name) {
+            result.set(appId, entry.data.name);
+          }
+        }
+
+        logger.info(
+          `Steam Store getAppNames: ${result.size} names fetched for batch of ${batch.length}`
+        );
+      } catch (error: any) {
+        logger.warn(`Steam Store getAppNames failed for batch: ${error.message}`);
+        // Non-fatal — caller falls back to "App {appId}"
+      }
+    }
+
+    return result;
+  }
 }
 
 export const steamApiService = new SteamApiService();
