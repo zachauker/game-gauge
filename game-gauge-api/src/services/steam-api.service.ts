@@ -9,13 +9,13 @@ import { logger } from '../utils/logger.util';
 export interface SteamOwnedGame {
   appid: number;
   name?: string;
-  playtime_forever: number; // total minutes played
-  playtime_2weeks?: number; // minutes played in last 2 weeks
+  playtime_forever: number;
+  playtime_2weeks?: number;
   img_icon_url?: string;
   playtime_windows_forever?: number;
   playtime_mac_forever?: number;
   playtime_linux_forever?: number;
-  rtime_last_played?: number; // unix timestamp (only returned for own key)
+  rtime_last_played?: number;
 }
 
 export interface SteamOwnedGamesResponse {
@@ -43,7 +43,7 @@ export interface SteamRecentGamesResponse {
 export interface SteamWishlistItem {
   appid: number;
   priority: number;
-  date_added: number; // unix timestamp
+  date_added: number;
 }
 
 export interface SteamWishlistResponse {
@@ -59,8 +59,8 @@ export interface SteamPlayerSummary {
   avatar: string;
   avatarmedium: string;
   avatarfull: string;
-  personastate: number; // 0=Offline, 1=Online, 2=Busy, 3=Away, 4=Snooze, 5=Looking to trade, 6=Looking to play
-  communityvisibilitystate: number; // 1=Private, 3=Public
+  personastate: number;
+  communityvisibilitystate: number;
   lastlogoff?: number;
   timecreated?: number;
   loccountrycode?: string;
@@ -78,14 +78,27 @@ export interface SteamLevelResponse {
   };
 }
 
+export interface SteamAchievement {
+  apiname: string;
+  achieved: number; // 1 = unlocked, 0 = locked
+  unlocktime: number; // unix timestamp (0 if not achieved)
+  name?: string;
+  description?: string;
+}
+
+export interface SteamPlayerAchievementsResponse {
+  playerstats: {
+    steamID: string;
+    gameName: string;
+    achievements?: SteamAchievement[];
+    success: boolean;
+    error?: string;
+  };
+}
+
 /**
  * Low-level wrapper around the Steam Web API.
  * All methods return raw Steam data — transformation happens in the sync service.
- *
- * Key constraints:
- * - 100,000 calls per rolling 24 hours
- * - GetOwnedGames / GetRecentlyPlayedGames require the user's profile to be **public**
- * - rtime_last_played is only returned when the API key belongs to the queried user
  */
 export class SteamApiService {
   private client: AxiosInstance;
@@ -144,7 +157,7 @@ export class SteamApiService {
           params: {
             key: env.STEAM_API_KEY,
             steamid: steamId,
-            count, // 0 = all recently played
+            count,
             format: 'json',
           },
         }
@@ -171,14 +184,9 @@ export class SteamApiService {
       const { data } = await this.client.get<SteamLevelResponse>(
         '/IPlayerService/GetSteamLevel/v1',
         {
-          params: {
-            key: env.STEAM_API_KEY,
-            steamid: steamId,
-            format: 'json',
-          },
+          params: { key: env.STEAM_API_KEY, steamid: steamId, format: 'json' },
         }
       );
-
       return data.response.player_level ?? null;
     } catch (error: any) {
       logger.error(`Steam GetSteamLevel failed for ${steamId}:`, error.message);
@@ -187,24 +195,56 @@ export class SteamApiService {
   }
 
   // ──────────────────────────────────────────────
-  // IWishlistService
+  // ISteamUserStats
   // ──────────────────────────────────────────────
 
   /**
-   * Get the player's wishlist.
-   * Note: This endpoint does not require an API key but we pass it anyway.
-   * The wishlist must be public.
+   * Get a player's achievement list for a specific game.
+   * Returns an empty array if the game has no achievements, the profile is
+   * private, or the user has never launched the game.
    */
+  async getPlayerAchievements(steamId: string, appId: number): Promise<SteamAchievement[]> {
+    try {
+      const { data } = await this.client.get<SteamPlayerAchievementsResponse>(
+        '/ISteamUserStats/GetPlayerAchievements/v1',
+        {
+          params: {
+            key: env.STEAM_API_KEY,
+            steamid: steamId,
+            appid: appId,
+            format: 'json',
+          },
+        }
+      );
+
+      if (!data.playerstats.success || !data.playerstats.achievements) {
+        logger.warn(
+          `Steam GetPlayerAchievements returned no data for appId ${appId} / ${steamId}: ${data.playerstats.error ?? 'unknown'}`
+        );
+        return [];
+      }
+
+      logger.info(
+        `Steam: fetched ${data.playerstats.achievements.length} achievements for appId ${appId}`
+      );
+      return data.playerstats.achievements;
+    } catch (error: any) {
+      logger.error(`Steam GetPlayerAchievements failed for appId ${appId}:`, error.message);
+      // Non-fatal — caller handles empty result gracefully
+      return [];
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // IWishlistService
+  // ──────────────────────────────────────────────
+
   async getWishlist(steamId: string): Promise<SteamWishlistItem[]> {
     try {
       const { data } = await this.client.get<SteamWishlistResponse>(
         '/IWishlistService/GetWishlist/v1',
         {
-          params: {
-            key: env.STEAM_API_KEY,
-            steamid: steamId,
-            format: 'json',
-          },
+          params: { key: env.STEAM_API_KEY, steamid: steamId, format: 'json' },
         }
       );
 
@@ -225,9 +265,6 @@ export class SteamApiService {
   // ISteamUser
   // ──────────────────────────────────────────────
 
-  /**
-   * Get player profile summary (visibility, name, avatar, online status).
-   */
   async getPlayerSummary(steamId: string): Promise<SteamPlayerSummary | null> {
     logger.info(
       `Steam API key present: ${!!env.STEAM_API_KEY}, length: ${env.STEAM_API_KEY?.length}`
@@ -236,18 +273,11 @@ export class SteamApiService {
       const { data } = await this.client.get<SteamPlayerSummariesResponse>(
         '/ISteamUser/GetPlayerSummaries/v2',
         {
-          params: {
-            key: env.STEAM_API_KEY,
-            steamids: steamId,
-            format: 'json',
-          },
+          params: { key: env.STEAM_API_KEY, steamids: steamId, format: 'json' },
         }
       );
 
-      if (!data.response.players || data.response.players.length === 0) {
-        return null;
-      }
-
+      if (!data.response.players || data.response.players.length === 0) return null;
       return data.response.players[0];
     } catch (error: any) {
       logger.error(
@@ -299,6 +329,52 @@ export class SteamApiService {
       6: 'Looking to Play',
     };
     return statuses[state] ?? 'Unknown';
+  }
+
+  /**
+   * Fetch app names from the Steam Store API for a batch of AppIDs.
+   *
+   * Uses the storefront /api/appdetails endpoint with filters=basic to keep
+   * responses small. Accepts up to ~200 IDs per call before responses become
+   * unreliable — caller should batch if needed.
+   *
+   * Returns a Map<appId, name>. Missing / failed lookups are omitted.
+   */
+  async getAppNames(appIds: number[]): Promise<Map<number, string>> {
+    const result = new Map<number, string>();
+    if (appIds.length === 0) return result;
+
+    // Steam store API is on a different base URL — use a plain axios call
+    const BATCH_SIZE = 100;
+
+    for (let i = 0; i < appIds.length; i += BATCH_SIZE) {
+      const batch = appIds.slice(i, i + BATCH_SIZE);
+      try {
+        const { data } = await axios.get('https://store.steampowered.com/api/appdetails', {
+          params: {
+            appids: batch.join(','),
+            filters: 'basic',
+          },
+          timeout: 15_000,
+        });
+
+        for (const appId of batch) {
+          const entry = data[String(appId)];
+          if (entry?.success && entry.data?.name) {
+            result.set(appId, entry.data.name);
+          }
+        }
+
+        logger.info(
+          `Steam Store getAppNames: ${result.size} names fetched for batch of ${batch.length}`
+        );
+      } catch (error: any) {
+        logger.warn(`Steam Store getAppNames failed for batch: ${error.message}`);
+        // Non-fatal — caller falls back to "App {appId}"
+      }
+    }
+
+    return result;
   }
 }
 

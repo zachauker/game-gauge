@@ -1,8 +1,7 @@
 import { z } from 'zod';
+export const COMPLETION_TYPES = ['beaten', '100pct', 'abandoned', 'endless'] as const;
+export type CompletionType = (typeof COMPLETION_TYPES)[number];
 
-/**
- * Schema for creating a list
- */
 export const createListSchema = z.object({
   name: z
     .string()
@@ -14,14 +13,9 @@ export const createListSchema = z.object({
     .max(500, 'Description must be less than 500 characters')
     .trim()
     .optional(),
-  isPublic: z
-    .boolean()
-    .default(true),
+  isPublic: z.boolean().default(true),
 });
 
-/**
- * Schema for updating a list
- */
 export const updateListSchema = z.object({
   name: z
     .string()
@@ -34,56 +28,48 @@ export const updateListSchema = z.object({
     .max(500, 'Description must be less than 500 characters')
     .trim()
     .optional(),
-  isPublic: z
-    .boolean()
-    .optional(),
+  isPublic: z.boolean().optional(),
 });
 
-/**
- * Schema for adding a game to a list
- */
 export const addGameToListSchema = z.object({
-  gameId: z
-    .string()
-    .uuid('Invalid game ID'),
-  notes: z
-    .string()
-    .max(500, 'Notes must be less than 500 characters')
-    .trim()
-    .optional(),
+  gameId: z.string().uuid('Invalid game ID'),
+  notes: z.string().max(500, 'Notes must be less than 500 characters').trim().optional(),
 });
 
 /**
- * Schema for updating a list item
+ * Update a list item — notes, order, and progress tracking fields.
+ * progressPct is only meaningful for Currently Playing items but is
+ * accepted on any list item; enforcement is at the service layer.
  */
 export const updateListItemSchema = z.object({
-  notes: z
+  notes: z.string().max(500, 'Notes must be less than 500 characters').trim().optional(),
+  order: z.number().int().min(0).optional(),
+
+  // Progress tracking
+  progressPct: z
+    .number()
+    .int('Progress must be a whole number')
+    .min(0, 'Progress cannot be less than 0')
+    .max(100, 'Progress cannot exceed 100')
+    .optional(),
+  progressNote: z
     .string()
-    .max(500, 'Notes must be less than 500 characters')
+    .max(300, 'Progress note must be less than 300 characters')
     .trim()
     .optional(),
-  order: z
-    .number()
-    .int()
-    .min(0)
-    .optional(),
 });
 
-/**
- * Schema for reordering list items
- */
 export const reorderListItemsSchema = z.object({
-  items: z.array(
-    z.object({
-      id: z.string().uuid(),
-      order: z.number().int().min(0),
-    })
-  ).min(1, 'At least one item is required'),
+  items: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        order: z.number().int().min(0),
+      })
+    )
+    .min(1, 'At least one item is required'),
 });
 
-/**
- * Query parameters for getting lists
- */
 export const getListsQuerySchema = z.object({
   page: z
     .string()
@@ -97,9 +83,36 @@ export const getListsQuerySchema = z.object({
     .default('20')
     .transform((val) => parseInt(val, 10))
     .refine((val) => val > 0 && val <= 100, 'Limit must be between 1 and 100'),
-  userId: z
-    .string()
-    .uuid()
+  userId: z.string().uuid().optional(),
+});
+
+export const completeGameSchema = z.object({
+  gameId: z.string().uuid('Invalid game ID'),
+
+  completionType: z.enum(COMPLETION_TYPES, {
+    errorMap: () => ({
+      message: 'completionType must be one of: beaten, 100pct, abandoned, endless',
+    }),
+  }),
+
+  // Optional rating (1–10)
+  rating: z
+    .number()
+    .int('Rating must be a whole number')
+    .min(1, 'Rating must be at least 1')
+    .max(10, 'Rating must be at most 10')
+    .optional(),
+
+  // Optional review
+  review: z
+    .object({
+      content: z
+        .string()
+        .min(10, 'Review must be at least 10 characters')
+        .max(5000, 'Review must be less than 5000 characters')
+        .trim(),
+      spoilers: z.boolean().default(false),
+    })
     .optional(),
 });
 
@@ -110,3 +123,4 @@ export type AddGameToListInput = z.infer<typeof addGameToListSchema>;
 export type UpdateListItemInput = z.infer<typeof updateListItemSchema>;
 export type ReorderListItemsInput = z.infer<typeof reorderListItemsSchema>;
 export type GetListsQuery = z.infer<typeof getListsQuerySchema>;
+export type CompleteGameInput = z.infer<typeof completeGameSchema>;

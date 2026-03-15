@@ -125,19 +125,25 @@ model Rating {
 }
 
 model GameList {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
   description String?
-  isPublic    Boolean  @default(false)
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPublic    Boolean @default(false)
+  // Default list fields
+  listType    String  @default("custom") // "wishlist" | "playing" | "completed" | "custom"
+  isDefault   Boolean @default(false) // system-provisioned; cannot be renamed or deleted
+
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   items GameListItem[]
 
   @@index([userId])
   @@index([isPublic])
+  @@index([listType])
+  @@index([userId, listType]) // fast lookup of a user's specific default list
 }
 
 model GameListItem {
@@ -148,26 +154,26 @@ model GameListItem {
   notes     String?
   createdAt DateTime @default(now())
 
+  // Progress tracking (Currently Playing)
+  progressPct  Int? // 0–100, manually set by user
+  progressNote String? // freetext milestone, e.g. "Just beat Act 2"
+
+  // Completion metadata (Completed list)
+  completedAt    DateTime?
+  completionType String? // "beaten" | "100pct" | "abandoned" | "endless"
+
+  // Steam achievements cache (Currently Playing + Completed)
+  steamAchievements Json? // { earned: N, total: N, percentage: N, lastFetched: ISO }
+
   list GameList @relation(fields: [listId], references: [id], onDelete: Cascade)
   game Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@unique([listId, gameId])
   @@index([listId])
   @@index([order])
+  @@index([completedAt])
+  @@index([completionType])
 }
-
-// ============================================================
-// PASTE the models below into your prisma/schema.prisma file
-// after the existing GameListItem model.
-// Also add the two relation fields to User and Game as noted.
-// ============================================================
-
-// ── Add these relation fields to the existing User model ──
-//   steamLibrary  SteamLibrarySync[]
-
-// ── Add these relation fields to the existing Game model ──
-//   steamLibraryEntries  SteamLibrarySync[]
-//   steamAppMappings     SteamAppMapping[]
 
 // ──────────────────────────────────────────────────────
 // Global Steam AppID → IGDB / Game Gauge mapping cache

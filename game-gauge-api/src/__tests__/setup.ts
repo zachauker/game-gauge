@@ -61,6 +61,9 @@ jest.mock('../config/database', () => ({
       count: jest.fn(),
       aggregate: jest.fn(),
     },
+    steamAppMapping: {
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
   },
@@ -172,12 +175,67 @@ export const testReview = {
   updatedAt: new Date(),
 };
 
+/** A standard custom list (pre-existing tests use this) */
 export const testList = {
   id: 'test-list-id',
   name: 'My Favorites',
   description: 'Games I love',
   isPublic: true,
+  isDefault: false,
+  listType: 'custom',
   userId: testUser.id,
   createdAt: new Date(),
   updatedAt: new Date(),
+};
+
+/** The three auto-provisioned default lists for testUser */
+export const testWishlist = {
+  id: 'wishlist-list-id',
+  name: 'Wishlist',
+  description: null,
+  isPublic: false,
+  isDefault: true,
+  listType: 'wishlist',
+  userId: testUser.id,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+export const testPlayingList = {
+  id: 'playing-list-id',
+  name: 'Currently Playing',
+  description: null,
+  isPublic: true,
+  isDefault: true,
+  listType: 'playing',
+  userId: testUser.id,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+export const testCompletedList = {
+  id: 'completed-list-id',
+  name: 'Completed',
+  description: null,
+  isPublic: true,
+  isDefault: true,
+  listType: 'completed',
+  userId: testUser.id,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+/** A GameListItem on the Currently Playing list with no progress yet */
+export const testListItem = {
+  id: 'test-list-item-id',
+  listId: testPlayingList.id,
+  gameId: testGame.id,
+  order: 0,
+  notes: null,
+  progressPct: null,
+  progressNote: null,
+  completedAt: null,
+  completionType: null,
+  steamAchievements: null,
+  createdAt: new Date(),
 };

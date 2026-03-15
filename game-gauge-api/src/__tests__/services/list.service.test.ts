@@ -1,7 +1,57 @@
 import { ListService } from '../../services/list.service';
-import { NotFoundError, ForbiddenError, ConflictError } from '../../utils/errors.util';
-import { testUser, testGame, testList } from '../setup';
+import {
+  NotFoundError,
+  ForbiddenError,
+  BadRequestError,
+  ConflictError,
+} from '../../utils/errors.util';
+import {
+  testUser,
+  testLinkedUser,
+  testGame,
+  testList,
+  testPlayingList,
+  testWishlist,
+  testCompletedList,
+  testListItem,
+} from '../setup';
 import { prisma } from '../../config/database';
+// ──────────────────────────────────────────────
+// Mock steam-api.service so tests never hit the
+// real Steam API, and we can control responses.
+// ──────────────────────────────────────────────
+jest.mock('../../services/steam-api.service', () => ({
+  steamApiService: {
+    getPlayerAchievements: jest.fn(),
+  },
+}));
+
+jest.mock('../../repositories/user.repository', () => ({
+  userRepository: {
+    findById: jest.fn(),
+  },
+}));
+
+import { steamApiService } from '../../services/steam-api.service';
+import { userRepository } from '../../repositories/user.repository';
+
+// ──────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────
+
+/** Wire up the findById mock to return a list that looks like `listOverrides`. */
+function mockList(listOverrides: object) {
+  (prisma.gameList.findUnique as jest.Mock).mockResolvedValue({
+    ...testPlayingList,
+    ...listOverrides,
+    items: [],
+    _count: { items: 0 },
+  });
+}
+
+function mockGameInList(inList = true) {
+  (prisma.gameListItem.count as jest.Mock).mockResolvedValue(inList ? 1 : 0);
+}
 
 describe('ListService', () => {
   let listService: ListService;
@@ -327,7 +377,6 @@ describe('ListService', () => {
           gameId: testGame.id,
         },
       });
-      expect(prisma.gameListItem.deleteMany).toHaveBeenCalled();
       expect(result).toHaveProperty('message');
     });
 
@@ -390,6 +439,304 @@ describe('ListService', () => {
       // Assert
       expect(prisma.gameList.findMany).toHaveBeenCalled();
       expect(result).toEqual([testList]);
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // Suite
+  // ──────────────────────────────────────────────
+
+  describe('ListService — default list features', () => {
+    let listService: ListService;
+
+    beforeEach(() => {
+      listService = new ListService();
+    });
+
+    // ────────────────────────────────────────────
+    // getDefaultLists
+    // ────────────────────────────────────────────
+    describe('getDefaultLists', () => {
+      it('returns all three default lists indexed by type', async () => {
+        const rows = [
+          { id: testWishlist.id, listType: 'wishlist', name: 'Wishlist' },
+          { id: testPlayingList.id, listType: 'playing', name: 'Currently Playing' },
+          { id: testCompletedList.id, listType: 'completed', name: 'Completed' },
+        ];
+        (prisma.gameList.findMany as jest.Mock).mockResolvedValue(rows);
+
+        const result = await listService.getDefaultLists(testUser.id);
+
+        expect(prisma.gameList.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { userId: testUser.id, isDefault: true },
+          })
+        );
+        expect(result.wishlist?.id).toBe(testWishlist.id);
+        expect(result.currentlyPlaying?.id).toBe(testPlayingList.id);
+        expect(result.completed?.id).toBe(testCompletedList.id);
+      });
+
+      it('returns null for a missing default list type', async () => {
+        // Only wishlist and playing exist (completed was somehow missing)
+        (prisma.gameList.findMany as jest.Mock).mockResolvedValue([
+          { id: testWishlist.id, listType: 'wishlist', name: 'Wishlist' },
+          { id: testPlayingList.id, listType: 'playing', name: 'Currently Playing' },
+        ]);
+
+        const result = await listService.getDefaultLists(testUser.id);
+
+        expect(result.completed).toBeNull();
+      });
+    });
+
+    // ────────────────────────────────────────────
+    // updateListItem — progress tracking
+    // ────────────────────────────────────────────
+    describe('updateListItem — progress tracking', () => {
+      const updatedItem = { ...testListItem, progressPct: 42, progressNote: 'Just started act 2' };
+
+      it('saves progressPct and progressNote on a playing list', async () => {
+        mockList({ listType: 'playing' });
+        mockGameInList(true);
+        (prisma.gameListItem.update as jest.Mock).mockResolvedValue(updatedItem);
+
+        const result = await listService.updateListItem(
+          testPlayingList.id,
+          testGame.id,
+          testUser.id,
+          { progressPct: 42, progressNote: 'Just started act 2' }
+        );
+
+        expect(prisma.gameListItem.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ progressPct: 42, progressNote: 'Just started act 2' }),
+          })
+        );
+        expect(result).toEqual(updatedItem);
+      });
+
+      it('rejects progressPct on a non-playing list', async () => {
+        mockList({ listType: 'completed' });
+        mockGameInList(true);
+
+        await expect(
+          listService.updateListItem(testCompletedList.id, testGame.id, testUser.id, {
+            progressPct: 50,
+          })
+        ).rejects.toThrow(BadRequestError);
+
+        expect(prisma.gameListItem.update).not.toHaveBeenCalled();
+      });
+
+      it('rejects progressNote on a wishlist list', async () => {
+        mockList({ listType: 'wishlist' });
+        mockGameInList(true);
+
+        await expect(
+          listService.updateListItem(testWishlist.id, testGame.id, testUser.id, {
+            progressNote: 'This should fail',
+          })
+        ).rejects.toThrow(BadRequestError);
+      });
+
+      it('allows updating notes without progressPct on any list type', async () => {
+        mockList({ listType: 'completed' });
+        mockGameInList(true);
+        const notesOnly = { ...testListItem, notes: 'Great ending' };
+        (prisma.gameListItem.update as jest.Mock).mockResolvedValue(notesOnly);
+
+        const result = await listService.updateListItem(
+          testCompletedList.id,
+          testGame.id,
+          testUser.id,
+          { notes: 'Great ending' }
+        );
+
+        expect(result).toEqual(notesOnly);
+      });
+
+      it('throws ForbiddenError when user does not own the list', async () => {
+        mockList({ listType: 'playing', userId: 'someone-else' });
+
+        await expect(
+          listService.updateListItem(testPlayingList.id, testGame.id, testUser.id, {
+            progressPct: 10,
+          })
+        ).rejects.toThrow(ForbiddenError);
+      });
+
+      it('throws NotFoundError when game is not in the list', async () => {
+        mockList({ listType: 'playing' });
+        mockGameInList(false);
+
+        await expect(
+          listService.updateListItem(testPlayingList.id, testGame.id, testUser.id, {
+            progressPct: 10,
+          })
+        ).rejects.toThrow(NotFoundError);
+      });
+    });
+
+    // ────────────────────────────────────────────
+    // delete — default list guard
+    // ────────────────────────────────────────────
+    describe('delete — default list guard', () => {
+      it('prevents deleting a default list', async () => {
+        mockList({ isDefault: true, userId: testUser.id });
+
+        await expect(listService.delete(testPlayingList.id, testUser.id)).rejects.toThrow(
+          ForbiddenError
+        );
+
+        expect(prisma.gameList.delete).not.toHaveBeenCalled();
+      });
+
+      it('allows deleting a custom list', async () => {
+        (prisma.gameList.findUnique as jest.Mock).mockResolvedValue({
+          ...testList,
+          isDefault: false,
+          items: [],
+          _count: { items: 0 },
+        });
+        (prisma.gameList.delete as jest.Mock).mockResolvedValue(testList);
+
+        const result = await listService.delete(testList.id, testUser.id);
+
+        expect(prisma.gameList.delete).toHaveBeenCalled();
+        expect(result).toEqual({ message: 'List deleted successfully' });
+      });
+    });
+
+    // ────────────────────────────────────────────
+    // syncAchievements
+    // ────────────────────────────────────────────
+    describe('syncAchievements', () => {
+      const mockAchievements = [
+        { apiname: 'ACH_1', achieved: 1, unlocktime: 1700000000 },
+        { apiname: 'ACH_2', achieved: 1, unlocktime: 1700000001 },
+        { apiname: 'ACH_3', achieved: 0, unlocktime: 0 },
+      ];
+
+      it('fetches from Steam and caches the snapshot when cache is cold', async () => {
+        mockList({ listType: 'playing', userId: testLinkedUser.id });
+        mockGameInList(true);
+        (userRepository.findById as jest.Mock).mockResolvedValue(testLinkedUser);
+        (prisma.steamAppMapping.findFirst as jest.Mock).mockResolvedValue({ steamAppId: 730 });
+        (prisma.gameListItem.findUnique as jest.Mock).mockResolvedValue({
+          ...testListItem,
+          steamAchievements: null, // cold cache
+        });
+        (steamApiService.getPlayerAchievements as jest.Mock).mockResolvedValue(mockAchievements);
+        const updatedItem = {
+          ...testListItem,
+          steamAchievements: {
+            earned: 2,
+            total: 3,
+            percentage: 67,
+            lastFetched: expect.any(String),
+          },
+        };
+        (prisma.gameListItem.update as jest.Mock).mockResolvedValue(updatedItem);
+
+        const result = await listService.syncAchievements(
+          testPlayingList.id,
+          testGame.id,
+          testLinkedUser.id
+        );
+
+        expect(steamApiService.getPlayerAchievements).toHaveBeenCalledWith(
+          testLinkedUser.steamId,
+          730
+        );
+        expect(prisma.gameListItem.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              steamAchievements: expect.objectContaining({ earned: 2, total: 3, percentage: 67 }),
+            }),
+          })
+        );
+        expect(result).toEqual(updatedItem);
+      });
+
+      it('returns cached data when snapshot is within the 1-hour TTL', async () => {
+        mockList({ listType: 'playing', userId: testLinkedUser.id });
+        mockGameInList(true);
+        (userRepository.findById as jest.Mock).mockResolvedValue(testLinkedUser);
+        (prisma.steamAppMapping.findFirst as jest.Mock).mockResolvedValue({ steamAppId: 730 });
+
+        const freshFetch = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // 5 min ago
+        const cachedItem = {
+          ...testListItem,
+          steamAchievements: { earned: 2, total: 3, percentage: 67, lastFetched: freshFetch },
+        };
+        (prisma.gameListItem.findUnique as jest.Mock).mockResolvedValue(cachedItem);
+
+        await listService.syncAchievements(testPlayingList.id, testGame.id, testLinkedUser.id);
+
+        // Steam API should NOT be called — cache is still fresh
+        expect(steamApiService.getPlayerAchievements).not.toHaveBeenCalled();
+        expect(prisma.gameListItem.update).not.toHaveBeenCalled();
+      });
+
+      it('re-fetches when the cached snapshot is older than 1 hour', async () => {
+        mockList({ listType: 'playing', userId: testLinkedUser.id });
+        mockGameInList(true);
+        (userRepository.findById as jest.Mock).mockResolvedValue(testLinkedUser);
+        (prisma.steamAppMapping.findFirst as jest.Mock).mockResolvedValue({ steamAppId: 730 });
+
+        const staleDate = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(); // 2 hours ago
+        (prisma.gameListItem.findUnique as jest.Mock).mockResolvedValue({
+          ...testListItem,
+          steamAchievements: { earned: 1, total: 3, percentage: 33, lastFetched: staleDate },
+        });
+        (steamApiService.getPlayerAchievements as jest.Mock).mockResolvedValue(mockAchievements);
+        (prisma.gameListItem.update as jest.Mock).mockResolvedValue(testListItem);
+
+        await listService.syncAchievements(testPlayingList.id, testGame.id, testLinkedUser.id);
+
+        expect(steamApiService.getPlayerAchievements).toHaveBeenCalled();
+      });
+
+      it('throws BadRequestError when no Steam account is linked', async () => {
+        mockList({ listType: 'playing', userId: testUser.id });
+        mockGameInList(true);
+        (userRepository.findById as jest.Mock).mockResolvedValue(testUser); // steamId: null
+
+        await expect(
+          listService.syncAchievements(testPlayingList.id, testGame.id, testUser.id)
+        ).rejects.toThrow(BadRequestError);
+
+        expect(steamApiService.getPlayerAchievements).not.toHaveBeenCalled();
+      });
+
+      it('throws NotFoundError when no SteamAppMapping exists for the game', async () => {
+        mockList({ listType: 'playing', userId: testLinkedUser.id });
+        mockGameInList(true);
+        (userRepository.findById as jest.Mock).mockResolvedValue(testLinkedUser);
+        (prisma.steamAppMapping.findFirst as jest.Mock).mockResolvedValue(null);
+
+        await expect(
+          listService.syncAchievements(testPlayingList.id, testGame.id, testLinkedUser.id)
+        ).rejects.toThrow(NotFoundError);
+      });
+
+      it('throws BadRequestError when called on a non-playing list', async () => {
+        mockList({ listType: 'completed', userId: testLinkedUser.id });
+        mockGameInList(true);
+
+        await expect(
+          listService.syncAchievements(testCompletedList.id, testGame.id, testLinkedUser.id)
+        ).rejects.toThrow(BadRequestError);
+      });
+
+      it('throws ForbiddenError when user does not own the list', async () => {
+        mockList({ listType: 'playing', userId: 'another-user' });
+
+        await expect(
+          listService.syncAchievements(testPlayingList.id, testGame.id, testLinkedUser.id)
+        ).rejects.toThrow(ForbiddenError);
+      });
     });
   });
 });

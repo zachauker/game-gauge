@@ -2,6 +2,7 @@ import { userRepository } from '../repositories/user.repository';
 import { generateToken } from '../utils/jwt.util';
 import { ConflictError, BadRequestError, NotFoundError } from '../utils/errors.util';
 import { logger } from '../utils/logger.util';
+import { provisionDefaultLists } from './list-provisioning.service';
 
 export interface SteamProfile {
   steamId: string;
@@ -30,7 +31,6 @@ export class SteamAuthService {
         steamAvatar: profile.avatar,
         steamProfileUrl: profile.profileUrl,
         // Update the main avatar only if the user hasn't uploaded a custom one
-        // (we detect this by checking if their current avatar is a Steam URL)
         ...(this.isSteamAvatar(user.avatar) || !user.avatar ? { avatar: profile.avatar } : {}),
       });
 
@@ -46,8 +46,10 @@ export class SteamAuthService {
         steamAvatar: profile.avatar,
         steamProfileUrl: profile.profileUrl,
         avatar: profile.avatar,
-        // No email or password — Steam-only user
       });
+
+      // Provision default lists (Wishlist, Currently Playing, Completed)
+      await provisionDefaultLists(user.id);
 
       isNewUser = true;
       logger.info(
@@ -73,26 +75,22 @@ export class SteamAuthService {
    * Used when a user with an email/password account wants to connect their Steam.
    */
   async linkSteamAccount(userId: string, profile: SteamProfile) {
-    // Verify the user exists
     const user = await userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
-    // Check if this Steam ID is already linked to a different account
     const existingSteamUser = await userRepository.findBySteamId(profile.steamId);
     if (existingSteamUser && existingSteamUser.id !== userId) {
       throw new ConflictError('This Steam account is already linked to another Game Gauge account');
     }
 
-    // Check if this user already has a different Steam account linked
     if (user.steamId && user.steamId !== profile.steamId) {
       throw new ConflictError(
         'Your account already has a different Steam account linked. Unlink it first.'
       );
     }
 
-    // Link the Steam account
     const updatedUser = await userRepository.update(userId, {
       steamId: profile.steamId,
       steamUsername: profile.username,
@@ -107,7 +105,7 @@ export class SteamAuthService {
 
   /**
    * Unlink a Steam account from a user.
-   * Only allowed if the user has email/password credentials set (otherwise they'd be locked out).
+   * Only allowed if the user has email/password credentials (otherwise they'd be locked out).
    */
   async unlinkSteamAccount(userId: string) {
     const user = await userRepository.findById(userId);
@@ -119,7 +117,6 @@ export class SteamAuthService {
       throw new BadRequestError('No Steam account is linked to your profile');
     }
 
-    // Safety check: don't let them unlink if it's their only auth method
     if (!user.email || !user.password) {
       throw new BadRequestError(
         'Cannot unlink Steam — you need to set an email and password first, otherwise you will lose access to your account'
@@ -139,7 +136,7 @@ export class SteamAuthService {
   }
 
   /**
-   * Get the Steam profile info for a user (public data for display).
+   * Get the linked Steam account info for the current user.
    */
   async getSteamStatus(userId: string) {
     const user = await userRepository.findById(userId);
@@ -158,18 +155,15 @@ export class SteamAuthService {
 
   /**
    * Generate a unique username from a Steam display name.
-   * Sanitizes the name to match our username rules (alphanumeric + underscore),
-   * then appends a number if there's a collision.
+   * Sanitizes the name to match username rules, then appends a number on collision.
    */
   private async generateUniqueUsername(steamDisplayName: string): Promise<string> {
-    // Sanitize: lowercase, replace spaces with underscores, strip invalid chars
     let base = steamDisplayName
       .toLowerCase()
       .replace(/\s+/g, '_')
       .replace(/[^a-z0-9_]/g, '')
-      .slice(0, 25); // Leave room for suffix
+      .slice(0, 25);
 
-    // Ensure minimum length
     if (base.length < 3) {
       base = 'steam_user';
     }
