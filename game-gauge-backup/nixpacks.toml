@@ -1,0 +1,8 @@
+[phases.build]
+cmds = ["npm install", "npm run build"]
+
+[phases.start]
+cmd = "node dist/backup.js"
+
+[variables]
+NIXPACKS_PKGS = "postgresql15"
