@@ -12,9 +12,9 @@ datasource db {
 
 model User {
   id        String  @id @default(uuid())
-  email     String? @unique // Changed from required to optional
+  email     String? @unique
   username  String  @unique
-  password  String? // Changed from required to optional
+  password  String?
   firstName String?
   lastName  String?
   bio       String?
@@ -34,6 +34,11 @@ model User {
   ratings      Rating[]
   helpfulVotes ReviewHelpful[]
   steamLibrary SteamLibrarySync[]
+
+  // Social
+  followers  UserFollow[]    @relation("Following")
+  following  UserFollow[]    @relation("Follower")
+  activities ActivityEvent[]
 
   @@index([email])
   @@index([username])
@@ -64,6 +69,7 @@ model Game {
   listItems           GameListItem[]
   steamLibraryEntries SteamLibrarySync[]
   steamAppMappings    SteamAppMapping[]
+  activityEvents      ActivityEvent[]
 
   @@index([slug])
   @@index([title])
@@ -75,7 +81,7 @@ model Review {
   content      String   @db.Text
   userId       String
   gameId       String
-  ratingId     String?  @unique // Link to rating if they rated it
+  ratingId     String?  @unique
   spoilers     Boolean  @default(false)
   helpfulCount Int      @default(0)
   createdAt    DateTime @default(now())
@@ -117,7 +123,7 @@ model Rating {
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   game   Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  review Review? // One-to-one with Review
+  review Review?
 
   @@unique([userId, gameId])
   @@index([gameId])
@@ -129,9 +135,8 @@ model GameList {
   name        String
   description String?
   isPublic    Boolean @default(false)
-  // Default list fields
-  listType    String  @default("custom") // "wishlist" | "playing" | "completed" | "custom"
-  isDefault   Boolean @default(false) // system-provisioned; cannot be renamed or deleted
+  listType    String  @default("custom")
+  isDefault   Boolean @default(false)
 
   userId    String
   createdAt DateTime @default(now())
@@ -143,7 +148,7 @@ model GameList {
   @@index([userId])
   @@index([isPublic])
   @@index([listType])
-  @@index([userId, listType]) // fast lookup of a user's specific default list
+  @@index([userId, listType])
 }
 
 model GameListItem {
@@ -154,16 +159,13 @@ model GameListItem {
   notes     String?
   createdAt DateTime @default(now())
 
-  // Progress tracking (Currently Playing)
-  progressPct  Int? // 0–100, manually set by user
-  progressNote String? // freetext milestone, e.g. "Just beat Act 2"
+  progressPct  Int?
+  progressNote String?
 
-  // Completion metadata (Completed list)
   completedAt    DateTime?
-  completionType String? // "beaten" | "100pct" | "abandoned" | "endless"
+  completionType String?
 
-  // Steam achievements cache (Currently Playing + Completed)
-  steamAchievements Json? // { earned: N, total: N, percentage: N, lastFetched: ISO }
+  steamAchievements Json?
 
   list GameList @relation(fields: [listId], references: [id], onDelete: Cascade)
   game Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
@@ -203,8 +205,8 @@ model SteamLibrarySync {
   steamAppId      Int
   gameId          String?
   name            String
-  playtimeForever Int       @default(0) // total minutes
-  playtimeRecent  Int       @default(0) // minutes in last 2 weeks
+  playtimeForever Int       @default(0)
+  playtimeRecent  Int       @default(0)
   iconUrl         String?
   lastPlayed      DateTime?
   lastSynced      DateTime  @default(now())
@@ -219,4 +221,42 @@ model SteamLibrarySync {
   @@index([gameId])
   @@index([playtimeForever])
   @@index([playtimeRecent])
+}
+
+// ──────────────────────────────────────────────────────
+// Social — Follow graph
+// ──────────────────────────────────────────────────────
+model UserFollow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// ──────────────────────────────────────────────────────
+// Social — Activity event log (powers feed)
+// ──────────────────────────────────────────────────────
+model ActivityEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String // RATED_GAME | REVIEWED_GAME | ADDED_TO_LIST | COMPLETED_GAME | STARTED_GAME | FOLLOWED_USER | CREATED_LIST
+  gameId    String?
+  targetId  String? // reviewId | listId | followingId — depends on type
+  meta      Json? // snapshot: game title, cover, score, review excerpt, etc.
+  createdAt DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([type])
+  @@index([gameId])
 }
