@@ -310,3 +310,26 @@ export const testGameInclude = {
   coverImage: testGame.coverImage,
   slug: testGame.slug,
 };
+
+// ─── Interaction fixtures ──────────────────────────────────────────────────────
+
+export const testReaction = {
+  id: 'test-reaction-id',
+  userId: testUser.id,
+  eventId: testActivityEvent.id,
+  createdAt: new Date(),
+};
+
+export const testComment = {
+  id: 'test-comment-id',
+  userId: testUser.id,
+  eventId: testActivityEvent.id,
+  content: 'Great review!',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+export const testCommentWithUser = {
+  ...testComment,
+  user: testUserInclude,
+};

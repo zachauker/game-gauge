@@ -29,11 +29,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  reviews      Review[]
-  lists        GameList[]
-  ratings      Rating[]
-  helpfulVotes ReviewHelpful[]
-  steamLibrary SteamLibrarySync[]
+  reviews        Review[]
+  lists          GameList[]
+  ratings        Rating[]
+  helpfulVotes   ReviewHelpful[]
+  steamLibrary   SteamLibrarySync[]
+  eventReactions EventReaction[]
+  eventComments  EventComment[]
 
   // Social
   followers  UserFollow[]    @relation("Following")
@@ -252,11 +254,45 @@ model ActivityEvent {
   meta      Json? // snapshot: game title, cover, score, review excerpt, etc.
   createdAt DateTime @default(now())
 
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  game Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game           Game?           @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  eventReactions EventReaction[]
+  eventComments  EventComment[]
 
   @@index([userId])
   @@index([createdAt])
   @@index([type])
   @@index([gameId])
+}
+
+model EventReaction {
+  id      String @id @default(uuid())
+  userId  String
+  eventId String
+
+  createdAt DateTime @default(now())
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId]) // one like per user per event
+  @@index([eventId])
+  @@index([userId])
+}
+
+model EventComment {
+  id      String @id @default(uuid())
+  userId  String
+  eventId String
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([createdAt])
 }

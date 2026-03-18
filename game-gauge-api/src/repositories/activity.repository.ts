@@ -13,6 +13,10 @@ export interface ActivityEventWithUser extends ActivityEvent {
     coverImage: string | null;
     slug: string;
   } | null;
+  // Interaction counts — hydrated in service layer
+  likeCount?: number;
+  commentCount?: number;
+  hasLiked?: boolean;
 }
 
 export interface PaginatedActivityResult {
@@ -28,7 +32,7 @@ export interface CreateActivityData {
   type: string;
   gameId?: string;
   targetId?: string;
-  meta?: Prisma.InputJsonValue; // ← correct type for nullable Json fields
+  meta?: Prisma.InputJsonValue;
 }
 
 const userInclude = {
@@ -40,16 +44,10 @@ const gameInclude = {
 } as const;
 
 class ActivityRepository {
-  /**
-   * Write a single activity event
-   */
   async create(data: CreateActivityData): Promise<ActivityEvent> {
     return prisma.activityEvent.create({ data });
   }
 
-  /**
-   * Personalized feed: events from followed users + own events, newest first
-   */
   async getFeedForUser(
     userId: string,
     followingIds: string[],
@@ -65,10 +63,7 @@ class ActivityRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
-          user: userInclude,
-          game: gameInclude,
-        },
+        include: { user: userInclude, game: gameInclude },
       }),
       prisma.activityEvent.count({ where: { userId: { in: userIds } } }),
     ]);
@@ -82,9 +77,6 @@ class ActivityRepository {
     };
   }
 
-  /**
-   * Single user's public activity log (for profile page)
-   */
   async getUserActivity(
     userId: string,
     page: number,
@@ -98,10 +90,7 @@ class ActivityRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
-          user: userInclude,
-          game: gameInclude,
-        },
+        include: { user: userInclude, game: gameInclude },
       }),
       prisma.activityEvent.count({ where: { userId } }),
     ]);
@@ -115,9 +104,6 @@ class ActivityRepository {
     };
   }
 
-  /**
-   * Platform-wide recent activity (for global feed tab)
-   */
   async getRecentPlatformActivity(page: number, limit: number): Promise<PaginatedActivityResult> {
     const skip = (page - 1) * limit;
 
@@ -126,10 +112,7 @@ class ActivityRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
-          user: userInclude,
-          game: gameInclude,
-        },
+        include: { user: userInclude, game: gameInclude },
       }),
       prisma.activityEvent.count(),
     ]);
@@ -143,9 +126,6 @@ class ActivityRepository {
     };
   }
 
-  /**
-   * Remove events by targetId and type — called when source content is deleted
-   */
   async deleteByTarget(targetId: string, type: string): Promise<void> {
     await prisma.activityEvent.deleteMany({ where: { targetId, type } });
   }

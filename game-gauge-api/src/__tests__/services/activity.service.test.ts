@@ -1,6 +1,12 @@
 import { activityService, ActivityType } from '../../services/activity.service';
-
-// ── Repository mocks ───────────────────────────────────────────────────────
+import {
+  testUser,
+  testOtherUser,
+  testGame,
+  testActivityEvent,
+  testUserInclude,
+  testGameInclude,
+} from '../setup';
 
 jest.mock('../../repositories/activity.repository', () => ({
   activityRepository: {
@@ -18,18 +24,25 @@ jest.mock('../../repositories/follow.repository', () => ({
   },
 }));
 
+jest.mock('../../repositories/interaction.repository', () => ({
+  interactionRepository: {
+    getBulkReactionData: jest.fn(),
+    getBulkCommentCounts: jest.fn(),
+  },
+}));
+
 import { activityRepository } from '../../repositories/activity.repository';
 import { followRepository } from '../../repositories/follow.repository';
-import {
-  testUser,
-  testOtherUser,
-  testGame,
-  testActivityEvent,
-  testUserInclude,
-  testGameInclude,
-} from '../setup';
+import { interactionRepository } from '../../repositories/interaction.repository';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+const makeEventRow = (overrides = {}) => ({
+  ...testActivityEvent,
+  user: testUserInclude,
+  game: testGameInclude,
+  ...overrides,
+});
 
 const paginatedResult = (events: unknown[] = []) => ({
   events,
@@ -39,20 +52,21 @@ const paginatedResult = (events: unknown[] = []) => ({
   hasMore: false,
 });
 
-const makeEventRow = (overrides = {}) => ({
-  ...testActivityEvent,
-  user: testUserInclude,
-  game: testGameInclude,
-  ...overrides,
-});
+const noReactions = () =>
+  (interactionRepository.getBulkReactionData as jest.Mock).mockResolvedValue(
+    new Map([[testActivityEvent.id, { count: 0, hasReacted: false }]])
+  );
 
-// ─── Tests ────────────────────────────────────────────────────────────────
+const noComments = () =>
+  (interactionRepository.getBulkCommentCounts as jest.Mock).mockResolvedValue(
+    new Map([[testActivityEvent.id, 0]])
+  );
+
+// ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('ActivityService', () => {
-  // ── recordEvent ───────────────────────────────────────────────────────────
-
   describe('recordEvent', () => {
-    it('writes an event to the repository', async () => {
+    it('writes an event to the repository with all options', async () => {
       (activityRepository.create as jest.Mock).mockResolvedValue(testActivityEvent);
 
       await activityService.recordEvent(testUser.id, ActivityType.REVIEWED_GAME, {
@@ -70,37 +84,34 @@ describe('ActivityService', () => {
       });
     });
 
-    it('does not throw when the repository write fails (fire-and-forget)', async () => {
+    it('is fire-and-forget — does not throw when the repository fails', async () => {
       (activityRepository.create as jest.Mock).mockRejectedValue(new Error('DB error'));
-
-      // Should resolve without throwing
       await expect(
         activityService.recordEvent(testUser.id, ActivityType.RATED_GAME)
       ).resolves.toBeUndefined();
     });
 
-    it('works with no options (minimal event)', async () => {
+    it('records a minimal event with no options', async () => {
       (activityRepository.create as jest.Mock).mockResolvedValue(testActivityEvent);
-
       await activityService.recordEvent(testUser.id, ActivityType.FOLLOWED_USER);
-
       expect(activityRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ userId: testUser.id, type: 'FOLLOWED_USER' })
       );
     });
   });
 
-  // ── getFeed ───────────────────────────────────────────────────────────────
-
   describe('getFeed', () => {
-    it('fetches following ids then retrieves paginated feed', async () => {
+    beforeEach(() => {
       (followRepository.getFollowingIds as jest.Mock).mockResolvedValue([testOtherUser.id]);
       (activityRepository.getFeedForUser as jest.Mock).mockResolvedValue(
         paginatedResult([makeEventRow()])
       );
+      noReactions();
+      noComments();
+    });
 
-      const result = await activityService.getFeed(testUser.id, 1, 20);
-
+    it('fetches following ids then retrieves the paginated feed', async () => {
+      await activityService.getFeed(testUser.id, 1, 20);
       expect(followRepository.getFollowingIds).toHaveBeenCalledWith(testUser.id);
       expect(activityRepository.getFeedForUser).toHaveBeenCalledWith(
         testUser.id,
@@ -108,70 +119,126 @@ describe('ActivityService', () => {
         1,
         20
       );
-      expect(result.events).toHaveLength(1);
     });
 
-    it('passes empty followingIds when user follows nobody', async () => {
+    it('passes an empty followingIds array when the user follows nobody', async () => {
       (followRepository.getFollowingIds as jest.Mock).mockResolvedValue([]);
       (activityRepository.getFeedForUser as jest.Mock).mockResolvedValue(paginatedResult());
-
+      noReactions();
+      noComments();
       await activityService.getFeed(testUser.id, 1, 20);
-
       expect(activityRepository.getFeedForUser).toHaveBeenCalledWith(testUser.id, [], 1, 20);
+    });
+
+    it('hydrates likeCount, hasLiked, and commentCount onto every event', async () => {
+      (interactionRepository.getBulkReactionData as jest.Mock).mockResolvedValue(
+        new Map([[testActivityEvent.id, { count: 5, hasReacted: true }]])
+      );
+      (interactionRepository.getBulkCommentCounts as jest.Mock).mockResolvedValue(
+        new Map([[testActivityEvent.id, 3]])
+      );
+      const result = await activityService.getFeed(testUser.id, 1, 20);
+      expect(result.events[0].likeCount).toBe(5);
+      expect(result.events[0].hasLiked).toBe(true);
+      expect(result.events[0].commentCount).toBe(3);
+    });
+
+    it('defaults interaction fields to 0 / false when event has no interactions', async () => {
+      const result = await activityService.getFeed(testUser.id, 1, 20);
+      expect(result.events[0].likeCount).toBe(0);
+      expect(result.events[0].hasLiked).toBe(false);
+      expect(result.events[0].commentCount).toBe(0);
+    });
+
+    it('calls bulk hydration methods with the correct event ids', async () => {
+      await activityService.getFeed(testUser.id, 1, 20);
+      const expectedIds = [testActivityEvent.id];
+      expect(interactionRepository.getBulkReactionData).toHaveBeenCalledWith(
+        expectedIds,
+        testUser.id
+      );
+      expect(interactionRepository.getBulkCommentCounts).toHaveBeenCalledWith(expectedIds);
+    });
+
+    it('skips hydration calls when the result set is empty', async () => {
+      (activityRepository.getFeedForUser as jest.Mock).mockResolvedValue(paginatedResult([]));
+      await activityService.getFeed(testUser.id, 1, 20);
+      expect(interactionRepository.getBulkReactionData).not.toHaveBeenCalled();
+      expect(interactionRepository.getBulkCommentCounts).not.toHaveBeenCalled();
     });
   });
 
-  // ── getUserActivity ───────────────────────────────────────────────────────
-
   describe('getUserActivity', () => {
-    it('delegates to the repository with correct args', async () => {
+    beforeEach(() => {
       (activityRepository.getUserActivity as jest.Mock).mockResolvedValue(
         paginatedResult([makeEventRow()])
       );
+      noReactions();
+      noComments();
+    });
 
-      const result = await activityService.getUserActivity(testUser.id, 1, 20);
-
+    it('delegates to the repository with correct args', async () => {
+      await activityService.getUserActivity(testUser.id, 1, 20);
       expect(activityRepository.getUserActivity).toHaveBeenCalledWith(testUser.id, 1, 20);
-      expect(result.events).toHaveLength(1);
+    });
+
+    it('hydrates interaction counts onto events', async () => {
+      (interactionRepository.getBulkReactionData as jest.Mock).mockResolvedValue(
+        new Map([[testActivityEvent.id, { count: 2, hasReacted: false }]])
+      );
+      (interactionRepository.getBulkCommentCounts as jest.Mock).mockResolvedValue(
+        new Map([[testActivityEvent.id, 1]])
+      );
+      const result = await activityService.getUserActivity(testUser.id, 1, 20);
+      expect(result.events[0].likeCount).toBe(2);
+      expect(result.events[0].commentCount).toBe(1);
+    });
+
+    it('does not pass a viewerId to getBulkReactionData (public activity view)', async () => {
+      await activityService.getUserActivity(testUser.id, 1, 20);
+      expect(interactionRepository.getBulkReactionData).toHaveBeenCalledWith(
+        expect.any(Array),
+        undefined
+      );
     });
   });
 
-  // ── getPlatformActivity ───────────────────────────────────────────────────
-
   describe('getPlatformActivity', () => {
-    it('delegates to the repository', async () => {
+    beforeEach(() => {
       (activityRepository.getRecentPlatformActivity as jest.Mock).mockResolvedValue(
         paginatedResult([makeEventRow()])
       );
+      noReactions();
+      noComments();
+    });
 
-      const result = await activityService.getPlatformActivity(1, 20);
-
+    it('delegates to the repository', async () => {
+      await activityService.getPlatformActivity(1, 20);
       expect(activityRepository.getRecentPlatformActivity).toHaveBeenCalledWith(1, 20);
-      expect(result.events).toHaveLength(1);
+    });
+
+    it('hydrates interaction counts onto all events', async () => {
+      const result = await activityService.getPlatformActivity(1, 20);
+      expect(result.events[0]).toHaveProperty('likeCount');
+      expect(result.events[0]).toHaveProperty('commentCount');
+      expect(result.events[0]).toHaveProperty('hasLiked');
     });
   });
-
-  // ── pruneEvents ───────────────────────────────────────────────────────────
 
   describe('pruneEvents', () => {
     it('calls deleteByTarget with the correct args', async () => {
       (activityRepository.deleteByTarget as jest.Mock).mockResolvedValue(undefined);
-
       await activityService.pruneEvents('review-id', ActivityType.REVIEWED_GAME);
-
       expect(activityRepository.deleteByTarget).toHaveBeenCalledWith('review-id', 'REVIEWED_GAME');
     });
 
-    it('does not throw if the delete fails (non-fatal)', async () => {
+    it('does not throw when the delete fails (non-fatal)', async () => {
       (activityRepository.deleteByTarget as jest.Mock).mockRejectedValue(new Error('DB error'));
-
       await expect(
         activityService.pruneEvents('review-id', ActivityType.REVIEWED_GAME)
       ).resolves.toBeUndefined();
     });
   });
-
-  // ── ActivityType constants ────────────────────────────────────────────────
 
   describe('ActivityType', () => {
     it('exports all expected event type constants', () => {

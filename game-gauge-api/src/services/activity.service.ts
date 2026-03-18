@@ -1,9 +1,10 @@
 import { activityRepository, PaginatedActivityResult } from '../repositories/activity.repository';
+import { interactionRepository } from '../repositories/interaction.repository';
 import { followRepository } from '../repositories/follow.repository';
 import { logger } from '../utils/logger.util';
 import { Prisma } from '@prisma/client';
 
-// ─── Event type constants ──────────────────────────────────────────────────
+// ─── Event type constants ──────────────────────────────────────────────────────
 
 export const ActivityType = {
   RATED_GAME: 'RATED_GAME',
@@ -20,15 +21,40 @@ export type ActivityTypeValue = (typeof ActivityType)[keyof typeof ActivityType]
 export interface RecordEventOptions {
   gameId?: string;
   targetId?: string;
-  meta?: Prisma.InputJsonValue; // was Record<string, unknown>
+  meta?: Prisma.InputJsonValue;
 }
 
-// ─── Service ───────────────────────────────────────────────────────────────
+// ─── Hydration helper ──────────────────────────────────────────────────────────
+
+async function hydrateInteractions(
+  result: PaginatedActivityResult,
+  viewerId?: string
+): Promise<PaginatedActivityResult> {
+  if (result.events.length === 0) return result;
+
+  const eventIds = result.events.map((e) => e.id);
+
+  const [reactionData, commentCounts] = await Promise.all([
+    interactionRepository.getBulkReactionData(eventIds, viewerId),
+    interactionRepository.getBulkCommentCounts(eventIds),
+  ]);
+
+  return {
+    ...result,
+    events: result.events.map((event) => ({
+      ...event,
+      likeCount: reactionData.get(event.id)?.count ?? 0,
+      hasLiked: reactionData.get(event.id)?.hasReacted ?? false,
+      commentCount: commentCounts.get(event.id) ?? 0,
+    })),
+  };
+}
+
+// ─── Service ───────────────────────────────────────────────────────────────────
 
 class ActivityService {
   /**
    * Fire-and-forget event recording.
-   * Wraps the write in a try/catch so a failed write never breaks the caller.
    */
   async recordEvent(
     userId: string,
@@ -44,44 +70,32 @@ class ActivityService {
         meta: options.meta,
       });
     } catch (err) {
-      // Non-fatal — log and move on
       logger.error(
         `[ActivityService] Failed to record event: ${JSON.stringify({ userId, type, err })}`
       );
     }
   }
 
-  /**
-   * Personalised feed for the authenticated user.
-   * Includes own events + events from followed users.
-   */
   async getFeed(userId: string, page: number, limit: number): Promise<PaginatedActivityResult> {
     const followingIds = await followRepository.getFollowingIds(userId);
-    return activityRepository.getFeedForUser(userId, followingIds, page, limit);
+    const raw = await activityRepository.getFeedForUser(userId, followingIds, page, limit);
+    return hydrateInteractions(raw, userId);
   }
 
-  /**
-   * Single user's public activity (for profile Activity tab).
-   */
   async getUserActivity(
     userId: string,
     page: number,
     limit: number
   ): Promise<PaginatedActivityResult> {
-    return activityRepository.getUserActivity(userId, page, limit);
+    const raw = await activityRepository.getUserActivity(userId, page, limit);
+    return hydrateInteractions(raw);
   }
 
-  /**
-   * Platform-wide recent activity (global feed tab).
-   */
   async getPlatformActivity(page: number, limit: number): Promise<PaginatedActivityResult> {
-    return activityRepository.getRecentPlatformActivity(page, limit);
+    const raw = await activityRepository.getRecentPlatformActivity(page, limit);
+    return hydrateInteractions(raw);
   }
 
-  /**
-   * Prune feed events when source content is deleted.
-   * Called by review/rating/list services on their delete paths.
-   */
   async pruneEvents(targetId: string, type: ActivityTypeValue): Promise<void> {
     try {
       await activityRepository.deleteByTarget(targetId, type);
