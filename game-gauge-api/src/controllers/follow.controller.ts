@@ -10,7 +10,7 @@ export class FollowController {
   async followUser(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) throw new Error('User not authenticated');
-      const result = await followService.followUser(req.user.userId, req.params.username);
+      const result = await followService.followUser(req.user.userId, req.params.username as string);
       res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -24,7 +24,10 @@ export class FollowController {
   async unfollowUser(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) throw new Error('User not authenticated');
-      const result = await followService.unfollowUser(req.user.userId, req.params.username);
+      const result = await followService.unfollowUser(
+        req.user.userId,
+        req.params.username as string
+      );
       res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -39,10 +42,10 @@ export class FollowController {
     try {
       const { page, limit } = paginationSchema.parse(req.query);
       const result = await followService.getFollowers(
-        req.params.username,
+        req.params.username as string,
         page,
         limit,
-        req.user?.userId,
+        req.user?.userId
       );
       res.status(200).json({ success: true, data: result });
     } catch (error) {
@@ -58,10 +61,10 @@ export class FollowController {
     try {
       const { page, limit } = paginationSchema.parse(req.query);
       const result = await followService.getFollowing(
-        req.params.username,
+        req.params.username as string,
         page,
         limit,
-        req.user?.userId,
+        req.user?.userId
       );
       res.status(200).json({ success: true, data: result });
     } catch (error) {

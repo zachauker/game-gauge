@@ -40,7 +40,7 @@ export class ActivityController {
    */
   async getUserActivity(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await userRepository.findByUsername(req.params.username);
+      const user = await userRepository.findByUsername(req.params.username as string);
       if (!user) throw new NotFoundError('User not found');
 
       const { page, limit } = paginationSchema.parse(req.query);
