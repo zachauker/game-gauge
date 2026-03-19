@@ -6,6 +6,8 @@ import {
   UpdateReviewInput,
   GetReviewsQuery,
 } from '../validators/review.validator';
+import { activityService } from './activity.service';
+import { ActivityType } from './activity.service';
 
 export class ReviewService {
   /**
@@ -24,16 +26,28 @@ export class ReviewService {
       throw new ConflictError('You have already reviewed this game');
     }
 
-    // Create review
-    const review = await reviewRepository.create({
-      content: data.content,
-      userId,
-      gameId,
-      spoilers: data.spoilers,
-    });
+    // Create review and record activity event.
+    await reviewRepository
+      .create({
+        content: data.content,
+        userId,
+        gameId,
+        spoilers: data.spoilers,
+      })
+      .then((review) => {
+        activityService.recordEvent(userId, ActivityType.REVIEWED_GAME, {
+          gameId,
+          targetId: review.id,
+          meta: {
+            excerpt: data.content.slice(0, 150),
+            gameTitle: game.title,
+            coverImage: game.coverImage,
+          },
+        });
 
-    // Return review with user info
-    return reviewRepository.findById(review.id);
+        // Return review with user info
+        return reviewRepository.findById(review.id);
+      });
   }
 
   /**
@@ -126,8 +140,10 @@ export class ReviewService {
       throw new ForbiddenError('You can only delete your own reviews');
     }
 
-    // Delete review
-    await reviewRepository.delete(reviewId);
+    // Delete review and associated activity events.
+    await reviewRepository
+      .delete(reviewId)
+      .then(() => activityService.pruneEvents(reviewId, ActivityType.REVIEWED_GAME));
 
     return { message: 'Review deleted successfully' };
   }

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { userService } from '../services/user.service';
+import { followService } from '../services/follow.service';
 
 export class UserController {
   /**
@@ -30,32 +31,12 @@ export class UserController {
 
       // First get user profile to get ID
       const profile = await userService.getProfile(username);
-      const stats = await userService.getUserStats(profile.id);
+      const [stats, followStats] = await Promise.all([
+        userService.getUserStats(profile.id),
+        followService.getFollowStats(profile.id, req.user?.userId),
+      ]);
 
-      res.status(200).json({
-        success: true,
-        data: stats,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Get user's recent activity
-   * GET /api/users/:username/activity
-   */
-  async getActivity(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { username } = req.params;
-      const limit = parseInt(req.query.limit as string) || 10;
-
-      const activity = await userService.getRecentActivity(username, limit);
-
-      res.status(200).json({
-        success: true,
-        data: activity,
-      });
+      res.json({ success: true, data: { ...stats, ...followStats } });
     } catch (error) {
       next(error);
     }
