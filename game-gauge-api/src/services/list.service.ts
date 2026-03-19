@@ -21,21 +21,30 @@ import {
 } from '../validators/list.validator';
 import { reviewRepository } from '../repositories/review.repository';
 import { ratingRepository } from '../repositories/rating.repository';
+import { activityService } from './activity.service';
+import { ActivityType } from './activity.service';
 
 // How long to use a cached achievement snapshot before re-fetching (ms)
 const ACHIEVEMENT_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export class ListService {
   /**
-   * Create a new list
+   * Create a new list and record an activity event for it.
    */
   async create(userId: string, data: CreateListInput) {
-    return listRepository.create({
-      name: data.name,
-      description: data.description,
-      isPublic: data.isPublic,
-      user: { connect: { id: userId } },
-    });
+    return listRepository
+      .create({
+        name: data.name,
+        description: data.description,
+        isPublic: data.isPublic,
+        user: { connect: { id: userId } },
+      })
+      .then((list) => {
+        activityService.recordEvent(userId, ActivityType.CREATED_LIST, {
+          targetId: list.id,
+          meta: { listName: data.name, isPublic: data.isPublic },
+        });
+      });
   }
 
   /**
@@ -139,7 +148,15 @@ export class ListService {
     const isInList = await listRepository.isGameInList(listId, data.gameId);
     if (isInList) throw new ConflictError('Game is already in this list');
 
-    return listRepository.addGameToList(listId, data.gameId, data.notes);
+    const eventType =
+      list.listType === 'playing' ? ActivityType.STARTED_GAME : ActivityType.ADDED_TO_LIST;
+
+    return listRepository.addGameToList(listId, data.gameId, data.notes).then((listItem) => {
+      activityService.recordEvent(userId, eventType, {
+        targetId: listItem.gameId,
+        meta: { gameTitle: game.title },
+      });
+    });
   }
 
   /**
@@ -337,36 +354,43 @@ export class ListService {
     }
 
     // Run everything atomically
-    await prisma.$transaction(async (tx) => {
-      // 1. Remove from Currently Playing if present
-      if (playingList) {
-        await tx.gameListItem.deleteMany({
-          where: { listId: playingList.id, gameId },
+    await prisma
+      .$transaction(async (tx) => {
+        // 1. Remove from Currently Playing if present
+        if (playingList) {
+          await tx.gameListItem.deleteMany({
+            where: { listId: playingList.id, gameId },
+          });
+        }
+
+        // 2. Upsert into Completed list
+        const maxOrder = await tx.gameListItem.aggregate({
+          where: { listId: completedList.id },
+          _max: { order: true },
         });
-      }
+        const nextOrder = (maxOrder._max.order ?? -1) + 1;
 
-      // 2. Upsert into Completed list
-      const maxOrder = await tx.gameListItem.aggregate({
-        where: { listId: completedList.id },
-        _max: { order: true },
+        await tx.gameListItem.upsert({
+          where: { listId_gameId: { listId: completedList.id, gameId } },
+          create: {
+            listId: completedList.id,
+            gameId,
+            order: nextOrder,
+            completionType,
+            completedAt: new Date(),
+          },
+          update: {
+            completionType,
+            completedAt: new Date(),
+          },
+        });
+      })
+      .then(() => {
+        activityService.recordEvent(userId, ActivityType.COMPLETED_GAME, {
+          gameId: gameId,
+          meta: { gameTitle: game.title, completionType },
+        });
       });
-      const nextOrder = (maxOrder._max.order ?? -1) + 1;
-
-      await tx.gameListItem.upsert({
-        where: { listId_gameId: { listId: completedList.id, gameId } },
-        create: {
-          listId: completedList.id,
-          gameId,
-          order: nextOrder,
-          completionType,
-          completedAt: new Date(),
-        },
-        update: {
-          completionType,
-          completedAt: new Date(),
-        },
-      });
-    });
 
     // 3. Upsert rating (outside transaction — idempotent by design)
     let savedRating = null;

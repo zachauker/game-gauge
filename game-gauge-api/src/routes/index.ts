@@ -8,6 +8,8 @@ import listRoutes from './list.routes';
 import userRoutes from './user.routes';
 import steamAuthRoutes from './steam-auth.routes';
 import steamSyncRoutes from './steam-sync.routes';
+import followRoutes from './follow.routes';
+import feedRoutes from './feed.routes';
 
 const router = Router();
 
@@ -21,6 +23,8 @@ router.use('/reviews', reviewRoutes);
 router.use('/igdb', igdbRoutes);
 router.use('/lists', listRoutes);
 router.use('/users', userRoutes);
+router.use('/users', followRoutes); // follow/followers/following endpoints
+router.use('/feed', feedRoutes); // personalised + global feed
 
 // Health check endpoint for Railway
 router.get('/health', (_req, res) => {

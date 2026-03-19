@@ -2,6 +2,8 @@ import { ratingRepository } from '../repositories/rating.repository';
 import { gameRepository } from '../repositories/game.repository';
 import { NotFoundError } from '../utils/errors.util';
 import { RatingInput, GetRatingsQuery } from '../validators/rating.validator';
+import { activityService } from './activity.service';
+import { ActivityType } from './activity.service';
 
 export class RatingService {
   /**
@@ -18,12 +20,20 @@ export class RatingService {
     // Upsert rating (create or update)
     const rating = await ratingRepository.upsert(userId, gameId, data.score);
 
+    // Record activity of game being rated.
+    const activityRecord = await activityService.recordEvent(userId, ActivityType.RATED_GAME, {
+      gameId,
+      targetId: rating.id,
+      meta: { score: data.score, gameTitle: game.title, coverImage: game.coverImage },
+    });
+
     // Get updated stats
     const stats = await ratingRepository.getStats(gameId);
 
     return {
       rating,
       stats,
+      activityRecord,
     };
   }
 

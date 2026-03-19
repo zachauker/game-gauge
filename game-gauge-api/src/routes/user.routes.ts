@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { userController } from '../controllers/user.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { activityController } from '../controllers/activity.controller';
 
 const router = Router();
 
@@ -58,9 +59,11 @@ router.get('/:username/stats', userController.getStats.bind(userController));
 
 /**
  * @route   GET /api/users/:username/activity
- * @desc    Get user's recent activity (ratings, reviews)
+ * @desc    Paginated ActivityEvent feed for a single user (profile Activity tab)
  * @access  Public
+ * @note    Routed to activityController — returns { events, total, page, hasMore }
+ *          NOT the old userController.getActivity which returned { ratings, reviews }
  */
-router.get('/:username/activity', userController.getActivity.bind(userController));
+router.get('/:username/activity', activityController.getUserActivity.bind(activityController));
 
 export default router;

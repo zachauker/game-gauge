@@ -7,6 +7,7 @@ jest.mock('../config/database', () => ({
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     },
     game: {
       findUnique: jest.fn(),
@@ -63,6 +64,19 @@ jest.mock('../config/database', () => ({
     },
     steamAppMapping: {
       findFirst: jest.fn(),
+    },
+    // ── Social ──────────────────────────────────
+    userFollow: {
+      create: jest.fn(),
+      delete: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+    activityEvent: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      deleteMany: jest.fn(),
     },
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
@@ -132,6 +146,24 @@ export const testLinkedUser = {
   updatedAt: new Date(),
 };
 
+/** A second plain user — used as a follow target */
+export const testOtherUser = {
+  id: 'other-user-id',
+  email: 'other@example.com',
+  username: 'otheruser',
+  password: 'hashedPassword789',
+  firstName: 'Other',
+  lastName: 'User',
+  avatar: 'https://example.com/other-avatar.jpg',
+  bio: 'Another gamer',
+  steamId: null,
+  steamUsername: null,
+  steamAvatar: null,
+  steamProfileUrl: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
 /** Reusable Steam profile data (as returned by the passport strategy) */
 export const testSteamProfile = {
   steamId: '76561198000000099',
@@ -171,6 +203,9 @@ export const testReview = {
   content: 'This is a great game!',
   userId: testUser.id,
   gameId: testGame.id,
+  ratingId: null,
+  spoilers: false,
+  helpfulCount: 0,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -238,4 +273,63 @@ export const testListItem = {
   completionType: null,
   steamAchievements: null,
   createdAt: new Date(),
+};
+
+// ── Social fixtures ────────────────────────────────────
+
+/** A follow row: testUser follows testOtherUser */
+export const testFollow = {
+  id: 'test-follow-id',
+  followerId: testUser.id,
+  followingId: testOtherUser.id,
+  createdAt: new Date(),
+};
+
+/** A REVIEWED_GAME activity event written by testUser */
+export const testActivityEvent = {
+  id: 'test-activity-id',
+  userId: testUser.id,
+  type: 'REVIEWED_GAME',
+  gameId: testGame.id,
+  targetId: testReview.id,
+  meta: { score: 8, excerpt: 'This is a great game!' },
+  createdAt: new Date(),
+};
+
+/** Minimal user shape returned by activity/follow includes */
+export const testUserInclude = {
+  id: testUser.id,
+  username: testUser.username,
+  avatar: testUser.avatar,
+};
+
+/** Minimal game shape returned by activity includes */
+export const testGameInclude = {
+  id: testGame.id,
+  title: testGame.title,
+  coverImage: testGame.coverImage,
+  slug: testGame.slug,
+};
+
+// ─── Interaction fixtures ──────────────────────────────────────────────────────
+
+export const testReaction = {
+  id: 'test-reaction-id',
+  userId: testUser.id,
+  eventId: testActivityEvent.id,
+  createdAt: new Date(),
+};
+
+export const testComment = {
+  id: 'test-comment-id',
+  userId: testUser.id,
+  eventId: testActivityEvent.id,
+  content: 'Great review!',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+export const testCommentWithUser = {
+  ...testComment,
+  user: testUserInclude,
 };
