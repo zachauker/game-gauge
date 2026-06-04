@@ -163,6 +163,26 @@ export class IGDBController {
     }
   }
   /**
+   * Fetch screenshots and videos for a given IGDB game ID.
+   * Served live — not stored in our DB.
+   *
+   * GET /api/igdb/media/:igdbId
+   */
+  async getGameMedia(req: Request, res: Response, next: NextFunction) {
+    try {
+      const igdbId = parseInt(req.params.igdbId as string, 10);
+      if (isNaN(igdbId)) {
+        res.status(400).json({ success: false, error: { message: 'Invalid ID' } });
+        return;
+      }
+      const data = await igdbService.getGameMedia(igdbId);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Fetch similar games from IGDB for a given IGDB game ID.
    * Used by the game detail page to populate the "More like this" row.
    *

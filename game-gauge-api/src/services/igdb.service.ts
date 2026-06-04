@@ -24,9 +24,15 @@ export interface IGDBGame {
     platform: number;
     human: string;
   }>;
-  genres?: Array<{
+  genres?: Array<{ id: number; name: string }>;
+  themes?: Array<{ id: number; name: string }>;
+  game_modes?: Array<{ id: number; name: string }>;
+  player_perspectives?: Array<{ id: number; name: string }>;
+  franchises?: Array<{ id: number; name: string }>;
+  age_ratings?: Array<{
     id: number;
-    name: string;
+    category: number; // 1=ESRB, 2=PEGI
+    rating: number;   // ESRB: 6=RP,7=EC,8=E,9=E10+,10=T,11=M,12=AO | PEGI: 1=3,2=7,3=12,4=16,5=18
   }>;
   platforms?: Array<{
     id: number;
@@ -34,16 +40,13 @@ export interface IGDBGame {
     abbreviation?: string;
   }>;
   involved_companies?: Array<{
-    company: {
-      id: number;
-      name: string;
-    };
+    company: { id: number; name: string };
     developer: boolean;
     publisher: boolean;
   }>;
-  rating?: number; // 0-100
+  rating?: number;              // IGDB community rating 0-100
   rating_count?: number;
-  aggregated_rating?: number; // Metacritic-like
+  aggregated_rating?: number;   // Critic/aggregated score 0-100
   aggregated_rating_count?: number;
   screenshots?: Array<{
     id: number;
@@ -52,13 +55,13 @@ export interface IGDBGame {
   }>;
   videos?: Array<{
     id: number;
-    video_id: string;
+    video_id: string; // YouTube video ID
     name?: string;
   }>;
   websites?: Array<{
     id: number;
     url: string;
-    category: number;
+    category: number; // 1=official,13=steam,16=reddit,5=twitter,9=youtube,etc.
   }>;
   similar_games?: number[];
 }
@@ -194,11 +197,16 @@ export class IGDBService {
    */
   async getGameById(igdbId: number): Promise<IGDBGame | null> {
     const apicalypseQuery = `
-      fields name, slug, summary, storyline, url, 
+      fields name, slug, summary, storyline, url,
              cover.url, cover.image_id,
              first_release_date,
              release_dates.date, release_dates.platform, release_dates.human,
              genres.name,
+             themes.name,
+             game_modes.name,
+             player_perspectives.name,
+             franchises.name,
+             age_ratings.category, age_ratings.rating,
              platforms.name, platforms.abbreviation,
              involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
              rating, rating_count, aggregated_rating, aggregated_rating_count,
@@ -353,6 +361,43 @@ export class IGDBService {
   }
 
   /**
+   * Helper: Decode IGDB age_ratings into a human-readable string.
+   * Prefers ESRB (category 1), falls back to PEGI (category 2).
+   *
+   * ESRB rating values: 6=RP, 7=EC, 8=E, 9=E10+, 10=T, 11=M, 12=AO
+   * PEGI rating values: 1=3, 2=7, 3=12, 4=16, 5=18
+   */
+  extractAgeRating(game: IGDBGame): string | undefined {
+    if (!game.age_ratings || game.age_ratings.length === 0) return undefined;
+
+    const ESRB_MAP: Record<number, string> = {
+      6: 'RP', 7: 'EC', 8: 'E', 9: 'E10+', 10: 'T', 11: 'M', 12: 'AO',
+    };
+    const PEGI_MAP: Record<number, string> = {
+      1: 'PEGI 3', 2: 'PEGI 7', 3: 'PEGI 12', 4: 'PEGI 16', 5: 'PEGI 18',
+    };
+
+    const esrb = game.age_ratings.find((r) => r.category === 1);
+    if (esrb) return ESRB_MAP[esrb.rating];
+
+    const pegi = game.age_ratings.find((r) => r.category === 2);
+    if (pegi) return PEGI_MAP[pegi.rating];
+
+    return undefined;
+  }
+
+  /**
+   * Helper: Extract official and Steam website URLs from IGDB websites array.
+   * Website category reference: 1=official, 13=steam
+   */
+  extractWebsites(game: IGDBGame): { official?: string; steam?: string } {
+    if (!game.websites) return {};
+    const official = game.websites.find((w) => w.category === 1)?.url;
+    const steam    = game.websites.find((w) => w.category === 13)?.url;
+    return { official, steam };
+  }
+
+  /**
    * Query the IGDB external_games endpoint.
    * Used to map Steam AppIDs (and other store IDs) to IGDB game IDs.
    *
@@ -408,6 +453,41 @@ export class IGDBService {
         ? { ...g.cover, url: this.getImageUrl(g.cover.image_id, 'cover_big') }
         : undefined,
     }));
+  }
+
+  /**
+   * Fetch all media (screenshots + videos) for a given IGDB game ID.
+   * Returned as-is — not stored in our DB, served live on each page load.
+   *
+   * Screenshots are sized to screenshot_huge (1280×720) for lightbox display.
+   */
+  async getGameMedia(igdbId: number): Promise<{
+    screenshots: Array<{ imageId: string; url: string }>;
+    videos: Array<{ videoId: string; name: string }>;
+  }> {
+    const query = `
+      fields screenshots.image_id, screenshots.url,
+             videos.video_id, videos.name;
+      where id = ${igdbId};
+      limit 1;
+    `;
+
+    const results = await this.request<IGDBGame[]>('/games', query.trim());
+    const game = results[0];
+
+    if (!game) return { screenshots: [], videos: [] };
+
+    const screenshots = (game.screenshots ?? []).map((s) => ({
+      imageId: s.image_id,
+      url:     this.getImageUrl(s.image_id, 'screenshot_huge'),
+    }));
+
+    const videos = (game.videos ?? []).map((v) => ({
+      videoId: v.video_id,
+      name:    v.name ?? 'Video',
+    }));
+
+    return { screenshots, videos };
   }
 
   async queryExternalGames(query: string): Promise<IGDBExternalGame[]> {

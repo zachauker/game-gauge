@@ -42,6 +42,13 @@ router.get('/recent', igdbController.getRecent.bind(igdbController));
 router.get('/games/:igdbId', igdbController.getGameById.bind(igdbController));
 
 /**
+ * @route   GET /api/igdb/media/:igdbId
+ * @desc    Get screenshots and videos for a game (live from source, not cached)
+ * @access  Public
+ */
+router.get('/media/:igdbId', igdbController.getGameMedia.bind(igdbController));
+
+/**
  * @route   GET /api/igdb/similar/:igdbId
  * @desc    Get similar games from IGDB for a given IGDB game ID.
  *          Returns up to 8 games with an inDatabase flag for each.
