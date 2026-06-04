@@ -252,6 +252,29 @@ export class GameController {
       next(error);
     }
   }
+  /**
+   * Get friends' ratings and reviews for a specific game.
+   * Auth-gated — returns an empty array for unauthenticated requests
+   * rather than erroring, so the frontend can call it unconditionally.
+   *
+   * GET /api/games/:id/friends-activity
+   */
+  async getFriendsActivity(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+
+      // Unauthenticated callers get an empty result — no error
+      if (!req.user) {
+        res.status(200).json({ success: true, data: [] });
+        return;
+      }
+
+      const data = await gameService.getFriendsActivity(id, req.user.userId);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const gameController = new GameController();

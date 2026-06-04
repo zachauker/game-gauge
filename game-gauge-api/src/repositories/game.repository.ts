@@ -420,6 +420,58 @@ export class GameRepository {
   /**
    * Get recently added games
    */
+  /**
+   * Return social context for a game page — which of the requesting user's
+   * followed accounts have rated or reviewed this game.
+   *
+   * Returns an array of friend activity items ordered by rating score desc so
+   * the highest ratings surface first in the UI.
+   */
+  async getFriendsActivity(gameId: string, requestingUserId: string) {
+    // Resolve the set of user IDs that the requesting user follows
+    const following = await prisma.userFollow.findMany({
+      where: { followerId: requestingUserId },
+      select: { followingId: true },
+    });
+
+    if (following.length === 0) return [];
+
+    const followingIds = following.map((f) => f.followingId);
+
+    // Fetch ratings (and optional review flag) for those users on this game
+    const ratings = await prisma.rating.findMany({
+      where: {
+        gameId,
+        userId: { in: followingIds },
+      },
+      include: {
+        user: {
+          select: { id: true, username: true, avatar: true },
+        },
+        // Check if a review also exists for this user+game pair
+        game: { select: { id: true } },
+      },
+      orderBy: { score: 'desc' },
+    });
+
+    // Check which of those users also left a review
+    const reviewerIds = new Set(
+      (
+        await prisma.review.findMany({
+          where: { gameId, userId: { in: followingIds } },
+          select: { userId: true },
+        })
+      ).map((r) => r.userId)
+    );
+
+    return ratings.map((r) => ({
+      user:       r.user,
+      score:      r.score,
+      hasReview:  reviewerIds.has(r.userId),
+      ratedAt:    r.createdAt,
+    }));
+  }
+
   async findRecent(limit: number = 10): Promise<Game[]> {
     return prisma.game.findMany({
       take: limit,
