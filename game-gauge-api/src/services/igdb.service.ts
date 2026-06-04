@@ -366,6 +366,50 @@ export class IGDBService {
    *   where category = 1 & uid = ("730", "570", "440");
    *   limit 500;
    */
+  /**
+   * Fetch similar games for a given IGDB game ID.
+   *
+   * Resolves in two queries:
+   *   1. Fetch the parent game to extract its similar_games ID array
+   *   2. Batch-fetch those IDs for cover/rating/platform data
+   *
+   * Returns an empty array if the game has no similar_games or the ID is invalid.
+   */
+  async getSimilarGames(igdbId: number, limit: number = 8): Promise<IGDBSearchResult[]> {
+    // Step 1: get the parent game's similar_games IDs
+    const parentQuery = `
+      fields similar_games;
+      where id = ${igdbId};
+      limit 1;
+    `;
+
+    const parents = await this.request<{ id: number; similar_games?: number[] }[]>(
+      '/games',
+      parentQuery.trim()
+    );
+
+    const similarIds = parents[0]?.similar_games;
+    if (!similarIds || similarIds.length === 0) return [];
+
+    // Step 2: batch-fetch the similar games (cover, rating, platforms)
+    const ids = similarIds.slice(0, limit);
+    const batchQuery = `
+      fields name, slug, cover.url, cover.image_id, first_release_date, rating, platforms.name, platforms.abbreviation;
+      where id = (${ids.join(',')}) & cover != null;
+      limit ${ids.length};
+    `;
+
+    const results = await this.request<IGDBSearchResult[]>('/games', batchQuery.trim());
+
+    // Transform cover image URLs to the standard cover_big size
+    return results.map((g) => ({
+      ...g,
+      cover: g.cover
+        ? { ...g.cover, url: this.getImageUrl(g.cover.image_id, 'cover_big') }
+        : undefined,
+    }));
+  }
+
   async queryExternalGames(query: string): Promise<IGDBExternalGame[]> {
     logger.info(`queryExternalGames sending query: ${query.trim()}`);
     const result = this.request<IGDBExternalGame[]>('/external_games', query.trim());

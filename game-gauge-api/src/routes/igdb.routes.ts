@@ -42,6 +42,15 @@ router.get('/recent', igdbController.getRecent.bind(igdbController));
 router.get('/games/:igdbId', igdbController.getGameById.bind(igdbController));
 
 /**
+ * @route   GET /api/igdb/similar/:igdbId
+ * @desc    Get similar games from IGDB for a given IGDB game ID.
+ *          Returns up to 8 games with an inDatabase flag for each.
+ * @access  Public
+ * @param   igdbId - IGDB game ID of the source game
+ */
+router.get('/similar/:igdbId', igdbController.getSimilarGames.bind(igdbController));
+
+/**
  * Protected routes (authentication required)
  */
 
