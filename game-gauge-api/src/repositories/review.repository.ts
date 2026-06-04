@@ -275,15 +275,27 @@ export class ReviewRepository {
     return prisma.review.findMany({
       where: { userId },
       take: limit,
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
       include: {
+        game: {
+          // ← THIS IS MISSING
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            coverImage: true,
+          },
+        },
         user: {
           select: {
             id: true,
             username: true,
             avatar: true,
+          },
+        },
+        _count: {
+          select: {
+            helpfulVotes: true,
           },
         },
       },
@@ -300,11 +312,25 @@ export class ReviewRepository {
         createdAt: 'desc',
       },
       include: {
+        game: {
+          // ← THIS IS MISSING
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            coverImage: true,
+          },
+        },
         user: {
           select: {
             id: true,
             username: true,
             avatar: true,
+          },
+        },
+        _count: {
+          select: {
+            helpfulVotes: true,
           },
         },
       },
@@ -442,7 +468,7 @@ export class ReviewRepository {
         reviewId: true,
       },
     });
-    return votes.map(v => v.reviewId);
+    return votes.map((v) => v.reviewId);
   }
 }
 

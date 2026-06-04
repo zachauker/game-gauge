@@ -235,6 +235,14 @@ export class RatingRepository {
         createdAt: 'desc',
       },
       include: {
+        game: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            coverImage: true,
+          },
+        },
         user: {
           select: {
             id: true,

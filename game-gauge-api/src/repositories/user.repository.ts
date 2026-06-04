@@ -253,6 +253,7 @@ class UserRepository {
       take: limit,
       include: {
         game: {
+          // ← THIS IS MISSING
           select: {
             id: true,
             title: true,
@@ -268,7 +269,6 @@ class UserRepository {
       },
     });
   }
-
   /**
    * Search users by username
    */
