@@ -42,7 +42,7 @@ export class ListService {
       .then((list) => {
         activityService.recordEvent(userId, ActivityType.CREATED_LIST, {
           targetId: list.id,
-          meta: { listName: data.name, isPublic: data.isPublic },
+          meta: { listName: data.name, isPublic: data.isPublic, listId: list.id },
         });
       });
   }
@@ -154,7 +154,7 @@ export class ListService {
     return listRepository.addGameToList(listId, data.gameId, data.notes).then((listItem) => {
       activityService.recordEvent(userId, eventType, {
         targetId: listItem.gameId,
-        meta: { gameTitle: game.title },
+        meta: { gameTitle: game.title, listId, listName: list.name },
       });
     });
   }
