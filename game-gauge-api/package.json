@@ -27,6 +27,9 @@
   ],
   "author": "Zach Auker",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
@@ -34,11 +37,9 @@
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "eslint-config-next": "^16.2.9",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
-    "next": "^16.2.9",
     "passport": "^0.7.0",
     "passport-steam": "^1.0.18",
     "pg": "^8.22.0",
