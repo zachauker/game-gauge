@@ -168,6 +168,16 @@ export class GameService {
   ) {
     return gameRepository.findByGenre(genre, options);
   }
+
+  /**
+   * Return social context for the game detail page — which of the requesting
+   * user's followed accounts have rated or reviewed this game.
+   */
+  async getFriendsActivity(gameId: string, requestingUserId: string) {
+    const game = await gameRepository.findById(gameId);
+    if (!game) throw new NotFoundError('Game not found');
+    return gameRepository.getFriendsActivity(gameId, requestingUserId);
+  }
 }
 
 export const gameService = new GameService();

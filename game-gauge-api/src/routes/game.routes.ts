@@ -3,7 +3,7 @@ import { gameController } from '../controllers/game.controller';
 import { ratingController } from '../controllers/rating.controller';
 import { reviewController } from '../controllers/review.controller';
 import { listController } from '../controllers/list.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, optionalAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -80,6 +80,19 @@ router.get('/slug/:slug', gameController.findBySlug.bind(gameController));
  * @access  Public
  */
 router.get('/', gameController.findAll.bind(gameController));
+
+/**
+ * @route   GET /api/games/:id/friends-activity
+ * @desc    Get ratings + reviews for this game from users the requester follows.
+ *          Returns [] for unauthenticated requests so the frontend can call it
+ *          unconditionally without needing auth-aware logic.
+ * @access  Public (empty result) / Auth (friend data)
+ */
+router.get(
+  '/:id/friends-activity',
+  optionalAuth,
+  gameController.getFriendsActivity.bind(gameController)
+);
 
 /**
  * @route   GET /api/games/:id

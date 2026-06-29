@@ -7,7 +7,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -62,6 +61,18 @@ model Game {
   // External API metadata
   igdbId     Int? @unique
   metacritic Int?
+
+  // Structured metadata — populated on import, additive to existing records
+  themes          String[]  // e.g. ["Action", "Fantasy", "Horror"]
+  gameModes       String[]  // e.g. ["Single player", "Multiplayer", "Co-operative"]
+  perspectives    String[]  // e.g. ["First person", "Third person"]
+  franchise       String?   // Primary series/franchise name
+  ageRating       String?   // "E" / "E10+" / "T" / "M" / "AO" / "PEGI 3" etc.
+  storyline       String?   @db.Text  // IGDB storyline (narrative, distinct from summary)
+  igdbRating      Float?    // Community rating normalised to 0–10
+  igdbRatingCount Int?      // Vote count for igdbRating
+  websiteOfficial String?   // Official site URL
+  websiteSteam    String?   // Steam store page URL
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

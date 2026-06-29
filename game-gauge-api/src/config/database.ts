@@ -1,10 +1,11 @@
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../utils/logger.util';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const prismaClientSingleton = () => {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
   return new PrismaClient({
+    adapter,
     log: [
-      { level: 'query', emit: 'event' },
       { level: 'error', emit: 'stdout' },
       { level: 'warn', emit: 'stdout' },
     ],
@@ -17,14 +18,6 @@ declare global {
 }
 
 const prisma = globalThis.prisma ?? prismaClientSingleton();
-
-// Log queries in development
-if (process.env.NODE_ENV === 'development') {
-  prisma.$on('query', (e) => {
-    logger.debug('Query: ' + e.query);
-    logger.debug('Duration: ' + e.duration + 'ms');
-  });
-}
 
 if (process.env.NODE_ENV !== 'production') {
   globalThis.prisma = prisma;

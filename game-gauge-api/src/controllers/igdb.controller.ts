@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { igdbService } from '../services/igdb.service';
 import { gameImportService } from '../services/gameImport.service';
+import { prisma } from '../config/database';
 import { z } from 'zod';
 
 // Validation schemas
@@ -157,6 +158,58 @@ export class IGDBController {
         success: true,
         data: game,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+  /**
+   * Fetch screenshots and videos for a given IGDB game ID.
+   * Served live — not stored in our DB.
+   *
+   * GET /api/igdb/media/:igdbId
+   */
+  async getGameMedia(req: Request, res: Response, next: NextFunction) {
+    try {
+      const igdbId = parseInt(req.params.igdbId as string, 10);
+      if (isNaN(igdbId)) {
+        res.status(400).json({ success: false, error: { message: 'Invalid ID' } });
+        return;
+      }
+      const data = await igdbService.getGameMedia(igdbId);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Fetch similar games from IGDB for a given IGDB game ID.
+   * Used by the game detail page to populate the "More like this" row.
+   *
+   * GET /api/igdb/similar/:igdbId
+   */
+  async getSimilarGames(req: Request, res: Response, next: NextFunction) {
+    try {
+      const igdbId = parseInt(req.params.igdbId as string, 10);
+      if (isNaN(igdbId)) {
+        res.status(400).json({ success: false, error: { message: 'Invalid igdbId' } });
+        return;
+      }
+
+      const games = await igdbService.getSimilarGames(igdbId);
+
+      // Cross-reference against our local DB so the frontend knows which
+      // games are already imported (AutoImportGameCard uses the inDatabase flag)
+      const igdbIds  = games.map((g) => g.id);
+      const localMap = await prisma.game.findMany({
+        where: { igdbId: { in: igdbIds } },
+        select: { igdbId: true },
+      });
+      const localIds = new Set(localMap.map((g) => g.igdbId));
+
+      const enriched = games.map((g) => ({ ...g, inDatabase: localIds.has(g.id) }));
+
+      res.status(200).json({ success: true, data: enriched });
     } catch (error) {
       next(error);
     }
