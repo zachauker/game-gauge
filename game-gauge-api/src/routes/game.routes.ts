@@ -82,6 +82,14 @@ router.get('/slug/:slug', gameController.findBySlug.bind(gameController));
 router.get('/', gameController.findAll.bind(gameController));
 
 /**
+ * @route   GET /api/games/by-igdb-ids
+ * @desc    Get games by IGDB IDs (comma-separated)
+ * @access  Public
+ * @note    Must be before /:id route to avoid matching "by-igdb-ids" as an ID
+ */
+router.get('/by-igdb-ids', gameController.getByIgdbIds.bind(gameController));
+
+/**
  * @route   GET /api/games/:id/friends-activity
  * @desc    Get ratings + reviews for this game from users the requester follows.
  *          Returns [] for unauthenticated requests so the frontend can call it

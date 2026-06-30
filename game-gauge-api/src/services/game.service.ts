@@ -120,8 +120,8 @@ export class GameService {
   /**
    * Get top-rated games (updated to use new method)
    */
-  async getTopRated(limit: number = 20) {
-    return gameRepository.getTopRated(limit);
+  async getTopRated(limit: number = 20, genre?: string) {
+    return gameRepository.getTopRated(limit, genre);
   }
 
   /**
@@ -134,8 +134,15 @@ export class GameService {
   /**
    * Get trending games
    */
-  async getTrending(days: number = 7, limit: number = 20) {
-    return gameRepository.getTrending(days, limit);
+  async getTrending(days: number = 7, limit: number = 20, genre?: string) {
+    return gameRepository.getTrending(days, limit, genre);
+  }
+
+  /**
+   * Find games by IGDB IDs
+   */
+  async findByIgdbIds(igdbIds: number[]) {
+    return gameRepository.findByIgdbIds(igdbIds);
   }
 
   /**

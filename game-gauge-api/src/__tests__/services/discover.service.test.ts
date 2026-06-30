@@ -1,4 +1,5 @@
 import { GameRepository } from '../../repositories/game.repository';
+import { GameController } from '../../controllers/game.controller';
 import { prisma } from '../../config/database';
 
 describe('GameRepository — genre-filtered browse', () => {
@@ -72,6 +73,31 @@ describe('GameRepository — genre-filtered browse', () => {
       const result = await repo.findByIgdbIds([1234, 5678]);
       expect(result).toHaveLength(1);
       expect(result[0].igdbId).toBe(1234);
+    });
+  });
+});
+
+describe('GameController.getByIgdbIds', () => {
+  it('returns empty array when ids param is missing', async () => {
+    const req = { query: {} } as any;
+    const res = { json: jest.fn() } as any;
+    const next = jest.fn();
+    const controller = new GameController();
+    await controller.getByIgdbIds(req, res, next);
+    expect(res.json).toHaveBeenCalledWith({ data: [] });
+  });
+
+  it('parses comma-separated ids and calls findByIgdbIds', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      { igdbId: 123, slug: 'test-game', averageRating: 8.0, ratingCount: 5 },
+    ]);
+    const req = { query: { ids: '123,456' } } as any;
+    const res = { json: jest.fn() } as any;
+    const next = jest.fn();
+    const controller = new GameController();
+    await controller.getByIgdbIds(req, res, next);
+    expect(res.json).toHaveBeenCalledWith({
+      data: [{ igdbId: 123, slug: 'test-game', averageRating: 8.0, ratingCount: 5 }],
     });
   });
 });

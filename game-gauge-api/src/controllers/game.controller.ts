@@ -137,12 +137,13 @@ export class GameController {
 
   /**
    * Get top rated games
-   * GET /api/games/top-rated?limit=20
+   * GET /api/games/top-rated?limit=20&genre=Action
    */
   async getTopRated(req: Request, res: Response, next: NextFunction) {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-      const games = await gameService.getTopRated(limit);
+      const genre = req.query.genre as string | undefined;
+      const games = await gameService.getTopRated(limit, genre);
 
       res.status(200).json({
         success: true,
@@ -155,18 +156,38 @@ export class GameController {
 
   /**
    * Get trending games
-   * GET /api/games/trending?days=7&limit=20
+   * GET /api/games/trending?days=7&limit=20&genre=Action
    */
   async getTrending(req: Request, res: Response, next: NextFunction) {
     try {
       const days = req.query.days ? parseInt(req.query.days as string, 10) : 7;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-      const games = await gameService.getTrending(days, limit);
+      const genre = req.query.genre as string | undefined;
+      const games = await gameService.getTrending(days, limit, genre);
 
       res.status(200).json({
         success: true,
         data: games,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get games by IGDB IDs
+   * GET /api/games/by-igdb-ids?ids=123,456,789
+   */
+  async getByIgdbIds(req: Request, res: Response, next: NextFunction) {
+    try {
+      const idsParam = req.query.ids as string;
+      if (!idsParam) {
+        res.json({ data: [] });
+        return;
+      }
+      const igdbIds = idsParam.split(',').map(Number).filter(n => !isNaN(n));
+      const data = await gameService.findByIgdbIds(igdbIds);
+      res.json({ data });
     } catch (error) {
       next(error);
     }
