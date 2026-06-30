@@ -117,9 +117,11 @@ export class GameRepository {
     }
 
     // Build orderBy clause
-    const orderBy: Prisma.GameOrderByWithRelationInput = {
-      [sortBy]: sortOrder,
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const orderBy: Prisma.GameOrderByWithRelationInput =
+      sortBy === 'averageRating'
+        ? ({ ratings: { _avg: { score: sortOrder } } } as any)
+        : { [sortBy]: sortOrder };
 
     // Calculate pagination
     const skip = (page - 1) * limit;

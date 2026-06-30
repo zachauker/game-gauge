@@ -128,7 +128,7 @@ export const listGamesQuerySchema = z.object({
     .max(50, 'Platform filter must be less than 50 characters')
     .optional(),
   sortBy: z
-    .enum(['title', 'releaseDate', 'createdAt', 'metacritic'])
+    .enum(['title', 'releaseDate', 'createdAt', 'metacritic', 'averageRating'])
     .optional()
     .default('createdAt'),
   sortOrder: z

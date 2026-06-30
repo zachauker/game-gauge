@@ -35,6 +35,30 @@ describe('GameRepository — genre-filtered browse', () => {
     });
   });
 
+  describe('GameRepository.findAll — averageRating sort', () => {
+    it('orders by rating relation aggregate when sortBy is averageRating', async () => {
+      (prisma.game.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.game.count as jest.Mock).mockResolvedValue(0);
+      await repo.findAll({ page: 1, limit: 20, sortBy: 'averageRating', sortOrder: 'desc' });
+      expect(prisma.game.findMany as jest.Mock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { ratings: { _avg: { score: 'desc' } } },
+        })
+      );
+    });
+
+    it('orders by plain field when sortBy is not averageRating', async () => {
+      (prisma.game.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.game.count as jest.Mock).mockResolvedValue(0);
+      await repo.findAll({ page: 1, limit: 20, sortBy: 'title', sortOrder: 'asc' });
+      expect(prisma.game.findMany as jest.Mock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { title: 'asc' },
+        })
+      );
+    });
+  });
+
   describe('findByIgdbIds', () => {
     it('returns empty array when no ids provided', async () => {
       const result = await repo.findByIgdbIds([]);
