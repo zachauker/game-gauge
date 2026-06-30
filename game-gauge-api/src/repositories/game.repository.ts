@@ -116,16 +116,53 @@ export class GameRepository {
       };
     }
 
-    // Build orderBy clause
-    // Prisma's RatingOrderByRelationAggregateInput only exposes _count at the type level,
-    // but the query engine supports _avg on relation aggregates at runtime.
-    const orderBy: Prisma.GameOrderByWithRelationInput =
-      sortBy === 'averageRating'
-        ? ({ ratings: { _avg: { score: sortOrder } } } as unknown as Prisma.GameOrderByWithRelationInput)
-        : { [sortBy]: sortOrder };
-
     // Calculate pagination
     const skip = (page - 1) * limit;
+
+    // Prisma's findMany does not support _avg on relation orderBy at runtime.
+    // Fall back to raw SQL when sorting by averageRating.
+    if (sortBy === 'averageRating') {
+      const genreFilter = genre ? Prisma.sql`AND g.genres @> ARRAY[${genre}]::text[]` : Prisma.empty;
+      const platformFilter = platform ? Prisma.sql`AND g.platforms @> ARRAY[${platform}]::text[]` : Prisma.empty;
+      const searchFilter = search
+        ? Prisma.sql`AND lower(g.title) LIKE lower(${`%${search}%`})`
+        : Prisma.empty;
+      const direction = sortOrder === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+
+      const [games, countResult] = await Promise.all([
+        prisma.$queryRaw<Array<Game & { _count: { reviews: number; ratings: number } }>>(
+          Prisma.sql`
+            SELECT g.*,
+              COALESCE(AVG(r.score), 0) as "averageRating",
+              COUNT(r.id)::int as "ratingCount",
+              json_build_object(
+                'reviews', (SELECT COUNT(*)::int FROM "Review" rv WHERE rv."gameId" = g.id),
+                'ratings', (SELECT COUNT(*)::int FROM "Rating" rt WHERE rt."gameId" = g.id)
+              ) as "_count"
+            FROM "Game" g
+            LEFT JOIN "Rating" r ON r."gameId" = g.id
+            WHERE 1=1 ${genreFilter} ${platformFilter} ${searchFilter}
+            GROUP BY g.id
+            ORDER BY AVG(r.score) ${direction}
+            LIMIT ${limit} OFFSET ${skip}
+          `
+        ),
+        prisma.$queryRaw<Array<{ count: bigint }>>(
+          Prisma.sql`
+            SELECT COUNT(*)::bigint as count FROM "Game" g
+            WHERE 1=1 ${genreFilter} ${platformFilter} ${searchFilter}
+          `
+        ),
+      ]);
+
+      const total = Number(countResult[0]?.count ?? 0);
+      return {
+        data: games,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      };
+    }
+
+    const orderBy: Prisma.GameOrderByWithRelationInput = { [sortBy]: sortOrder };
 
     // Execute queries in parallel
     const [games, total] = await Promise.all([

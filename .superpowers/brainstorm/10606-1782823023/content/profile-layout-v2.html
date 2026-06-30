@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile Layout v2</title>
+<script src="/helper.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f0f13;
+    color: #e2e2e8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    padding: 24px;
+  }
+
+  .page-title {
+    font-size: 13px;
+    color: #9090a8;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  /* All cards constrained to same max-width */
+  .profile-shell,
+  .two-panel {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .profile-shell {
+    border: 1.5px solid #7c3aed33;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #18181f;
+  }
+
+  .profile-body { padding: 24px; }
+
+  /* Header */
+  .profile-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .avatar {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed55, #7c3aed22);
+    border: 2px solid #7c3aed33;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 500;
+    color: #e2e2e899; flex-shrink: 0;
+  }
+
+  .header-info { flex: 1; padding-top: 4px; }
+  .display-name { font-size: 20px; font-weight: 500; line-height: 1.2; }
+  .username { font-size: 13px; color: #9090a8; margin-top: 2px; }
+  .bio { font-size: 13px; color: #9090a899; margin-top: 8px; line-height: 1.5; }
+  .join-date { font-size: 11px; color: #9090a860; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+
+  .follow-btn {
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .stats-row {
+    display: flex;
+    align-items: center;
+    background: #0f0f13;
+    border: 1px solid #7c3aed22;
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-bottom: 24px;
+  }
+
+  .stat-pill {
+    text-align: center;
+    flex: 1;
+    padding: 0 12px;
+    border-right: 1px solid #7c3aed22;
+  }
+  .stat-pill:last-child { border-right: none; }
+
+  .stat-value {
+    font-size: 18px; font-weight: 500;
+    line-height: 1.2; font-variant-numeric: tabular-nums;
+  }
+
+  .stat-label {
+    font-size: 10px; color: #9090a860;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-top: 2px;
+  }
+
+  .stat-pill.clickable { cursor: pointer; border-radius: 6px; transition: background 0.15s; }
+  .stat-pill.clickable:hover { background: #7c3aed11; }
+  .stat-pill.clickable .stat-value { color: #c4b5fd; }
+  .stat-pill.clickable .stat-label { color: #9090a8; }
+
+  .new-badge {
+    display: inline-block;
+    background: #f59e0b22;
+    color: #f59e0b;
+    border-radius: 4px;
+    font-size: 9px;
+    padding: 1px 5px;
+    margin-left: 5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid #7c3aed22;
+    margin-bottom: 16px;
+  }
+
+  .tab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 10px 16px;
+    font-size: 13px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: #9090a860;
+    cursor: pointer;
+  }
+
+  .tab.active {
+    border-bottom-color: #f59e0b;
+    color: #e2e2e8ee;
+    font-weight: 500;
+  }
+
+  .activity-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .activity-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #0f0f13;
+    border: 1px solid #7c3aed18;
+  }
+
+  .cover-sm {
+    width: 28px; height: 36px;
+    border-radius: 4px; background: #7c3aed22;
+    flex-shrink: 0;
+  }
+
+  .activity-row-info { flex: 1; min-width: 0; }
+  .game-title-sm { font-size: 13px; color: #e2e2e8cc; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .event-type { font-size: 11px; color: #9090a870; margin-top: 2px; }
+
+  .score-badge {
+    display: flex; align-items: center; gap: 3px;
+    font-size: 13px; font-weight: 500; color: #f59e0b;
+    flex-shrink: 0;
+  }
+
+  .activity-card {
+    padding: 14px;
+    border-radius: 8px;
+    background: #0f0f13;
+    border: 1px solid #7c3aed18;
+  }
+
+  .activity-card-header {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .cover-md {
+    width: 32px; height: 42px;
+    border-radius: 4px; background: #7c3aed22;
+    flex-shrink: 0;
+  }
+
+  .card-game-title { font-size: 13px; color: #e2e2e8cc; font-weight: 500; }
+  .card-event-type { font-size: 11px; color: #9090a870; margin-top: 2px; }
+  .card-time { font-size: 11px; color: #9090a850; margin-left: auto; }
+
+  .review-excerpt {
+    font-size: 12px; color: #9090a8aa; line-height: 1.6;
+  }
+
+  /* Bottom two panels — same max-width as profile, side by side inside it */
+  .two-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .panel {
+    background: #18181f;
+    border: 1.5px solid #7c3aed33;
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .panel-label {
+    font-size: 10px; color: #9090a8; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .panel-label .badge {
+    background: #7c3aed22; color: #c4b5fd;
+    border-radius: 4px; padding: 2px 7px; font-size: 9px;
+  }
+
+  .follow-page { display: flex; flex-direction: column; gap: 6px; }
+
+  .follow-user-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #0f0f13;
+    border: 1px solid #7c3aed18;
+  }
+
+  .follow-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #7c3aed33; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 13px; color: #e2e2e899; flex-shrink: 0;
+  }
+
+  .follow-user-info { flex: 1; min-width: 0; }
+  .follow-username { font-size: 13px; font-weight: 500; color: #e2e2e8cc; }
+  .follow-bio { font-size: 11px; color: #9090a870; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .follow-action {
+    font-size: 11px; font-weight: 500; padding: 5px 12px;
+    border-radius: 6px; border: 1px solid #7c3aed55; color: #c4b5fd;
+    background: transparent; cursor: pointer; flex-shrink: 0;
+  }
+  .follow-action.following {
+    background: #7c3aed22; border-color: #7c3aed66;
+  }
+</style>
+</head>
+<body>
+
+<p class="page-title">Design Section 1 — Profile Page Layout (v2 · aligned widths)</p>
+
+<!-- Profile -->
+<div class="profile-shell">
+  <div class="profile-body">
+
+    <div class="profile-header">
+      <div class="avatar">ZA</div>
+      <div class="header-info">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+          <div>
+            <div class="display-name">Zachary Auker</div>
+            <div class="username">@zachauker</div>
+          </div>
+          <button class="follow-btn">Follow</button>
+        </div>
+        <div class="bio">Playing games since the SNES era. RPGs, immersive sims, the occasional roguelike.</div>
+        <div class="join-date">📅 Member since 2024</div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-pill">
+        <div class="stat-value">142</div>
+        <div class="stat-label">Ratings</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-value">31</div>
+        <div class="stat-label">Reviews</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-value">8.1</div>
+        <div class="stat-label">Avg score</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-value">6</div>
+        <div class="stat-label">Lists</div>
+      </div>
+      <div class="stat-pill clickable">
+        <div class="stat-value">84 →</div>
+        <div class="stat-label">Followers</div>
+      </div>
+      <div class="stat-pill clickable">
+        <div class="stat-value">37 →</div>
+        <div class="stat-label">Following</div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab">⭐ Ratings</div>
+      <div class="tab">📖 Reviews</div>
+      <div class="tab active">⚡ Activity <span class="new-badge">NEW</span></div>
+      <div class="tab">📋 Lists</div>
+    </div>
+
+    <div class="activity-list">
+      <div class="activity-row">
+        <div class="cover-sm"></div>
+        <div class="activity-row-info">
+          <div class="game-title-sm">Elden Ring</div>
+          <div class="event-type">Rated · 2h ago</div>
+        </div>
+        <div class="score-badge">★ 9</div>
+      </div>
+
+      <div class="activity-row">
+        <div class="cover-sm"></div>
+        <div class="activity-row-info">
+          <div class="game-title-sm">Hollow Knight</div>
+          <div class="event-type">Added to Currently Playing · Yesterday</div>
+        </div>
+      </div>
+
+      <div class="activity-card">
+        <div class="activity-card-header">
+          <div class="cover-md"></div>
+          <div style="flex:1">
+            <div class="card-game-title">Baldur's Gate 3</div>
+            <div class="card-event-type">Reviewed · 3d ago</div>
+          </div>
+          <div class="card-time">3d ago</div>
+        </div>
+        <div class="review-excerpt">
+          "A staggering achievement. The reactivity of the world to your choices is unlike anything I've played in the genre — even on a second playthrough you're discovering entirely new branches..."
+        </div>
+      </div>
+
+      <div class="activity-row">
+        <div class="cover-sm"></div>
+        <div class="activity-row-info">
+          <div class="game-title-sm">Hades</div>
+          <div class="event-type">Marked as Completed · 1w ago</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Followers / Following — same max-width, flush below -->
+<div class="two-panel">
+
+  <div class="panel">
+    <div class="panel-label">
+      /users/zachauker/followers
+      <span class="badge">84 followers</span>
+    </div>
+    <div class="follow-page">
+      <div class="follow-user-row">
+        <div class="follow-avatar">MK</div>
+        <div class="follow-user-info">
+          <div class="follow-username">mkelly</div>
+          <div class="follow-bio">Horror games and JRPGs</div>
+        </div>
+        <button class="follow-action following">Following</button>
+      </div>
+      <div class="follow-user-row">
+        <div class="follow-avatar">SR</div>
+        <div class="follow-user-info">
+          <div class="follow-username">srathmore</div>
+          <div class="follow-bio">Strategy, sims, and open world</div>
+        </div>
+        <button class="follow-action">Follow</button>
+      </div>
+      <div class="follow-user-row">
+        <div class="follow-avatar">TN</div>
+        <div class="follow-user-info">
+          <div class="follow-username">tnguyen</div>
+          <div class="follow-bio"></div>
+        </div>
+        <button class="follow-action">Follow</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">
+      /users/zachauker/following
+      <span class="badge">37 following</span>
+    </div>
+    <div class="follow-page">
+      <div class="follow-user-row">
+        <div class="follow-avatar">AL</div>
+        <div class="follow-user-info">
+          <div class="follow-username">alex_l</div>
+          <div class="follow-bio">Soulslike enthusiast</div>
+        </div>
+        <button class="follow-action following">Following</button>
+      </div>
+      <div class="follow-user-row">
+        <div class="follow-avatar">JD</div>
+        <div class="follow-user-info">
+          <div class="follow-username">jdavis</div>
+          <div class="follow-bio">Indie games and pixel art</div>
+        </div>
+        <button class="follow-action following">Following</button>
+      </div>
+      <div class="follow-user-row">
+        <div class="follow-avatar">CP</div>
+        <div class="follow-user-info">
+          <div class="follow-username">cpatel</div>
+          <div class="follow-bio">Fighting games + fighting games</div>
+        </div>
+        <button class="follow-action following">Following</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
