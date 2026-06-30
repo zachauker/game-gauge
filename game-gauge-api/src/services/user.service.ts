@@ -1,4 +1,5 @@
 import { userRepository, UserProfile, UserStats } from '../repositories/user.repository';
+import { ratingRepository } from '../repositories/rating.repository';
 import { ConflictError, NotFoundError } from '../utils/errors.util';
 
 export class UserService {
@@ -100,6 +101,15 @@ export class UserService {
       ratings: recentRatings,
       reviews: recentReviews,
     };
+  }
+
+  /**
+   * Get paginated ratings for a user by username
+   */
+  async getUserRatings(username: string, page: number, limit: number) {
+    const profile = await userRepository.getProfile(username);
+    if (!profile) throw new NotFoundError('User not found');
+    return ratingRepository.findByUserProfile(profile.id, page, limit);
   }
 
   /**
