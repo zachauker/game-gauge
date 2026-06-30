@@ -66,4 +66,18 @@ router.get('/:username/stats', userController.getStats.bind(userController));
  */
 router.get('/:username/activity', activityController.getUserActivity.bind(activityController));
 
+/**
+ * @route   GET /api/users/:username/ratings
+ * @desc    Get user's ratings paginated
+ * @access  Public
+ */
+router.get('/:username/ratings', userController.getUserRatings.bind(userController));
+
+/**
+ * @route   GET /api/users/:username/reviews
+ * @desc    Get user's reviews paginated
+ * @access  Public
+ */
+router.get('/:username/reviews', userController.getUserReviews.bind(userController));
+
 export default router;

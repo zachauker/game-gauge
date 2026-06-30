@@ -27,6 +27,22 @@ export interface PaginatedReviews {
   };
 }
 
+export interface ProfileReviewItem {
+  id: string;
+  content: string;
+  spoilers: boolean;
+  createdAt: Date;
+  game: { id: string; title: string; slug: string; coverImage: string | null };
+  _count: { helpfulVotes: number };
+}
+
+export interface ProfileReviewPage {
+  items: ProfileReviewItem[];
+  total: number;
+  page: number;
+  hasMore: boolean;
+}
+
 export class ReviewRepository {
   /**
    * Create a new review
@@ -451,6 +467,31 @@ export class ReviewRepository {
       },
     });
     return !!vote;
+  }
+
+  /**
+   * Get paginated reviews for a user profile (includes game data)
+   */
+  async findByUserProfile(userId: string, page: number, limit: number): Promise<ProfileReviewPage> {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          content: true,
+          spoilers: true,
+          createdAt: true,
+          game: { select: { id: true, title: true, slug: true, coverImage: true } },
+          _count: { select: { helpfulVotes: true } },
+        },
+      }),
+      prisma.review.count({ where: { userId } }),
+    ]);
+    return { items, total, page, hasMore: skip + items.length < total };
   }
 
   /**

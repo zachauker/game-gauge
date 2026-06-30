@@ -28,6 +28,20 @@ export interface PaginatedRatings {
   };
 }
 
+export interface ProfileRatingItem {
+  id: string;
+  score: number;
+  createdAt: Date;
+  game: { id: string; title: string; slug: string; coverImage: string | null };
+}
+
+export interface ProfileRatingPage {
+  items: ProfileRatingItem[];
+  total: number;
+  page: number;
+  hasMore: boolean;
+}
+
 export class RatingRepository {
   /**
    * Create or update a rating (upsert)
@@ -141,6 +155,29 @@ export class RatingRepository {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Get paginated ratings for a user profile (includes game info)
+   */
+  async findByUserProfile(userId: string, page: number, limit: number): Promise<ProfileRatingPage> {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      prisma.rating.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          score: true,
+          createdAt: true,
+          game: { select: { id: true, title: true, slug: true, coverImage: true } },
+        },
+      }),
+      prisma.rating.count({ where: { userId } }),
+    ]);
+    return { items, total, page, hasMore: skip + items.length < total };
   }
 
   /**

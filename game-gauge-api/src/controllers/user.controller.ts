@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { userService } from '../services/user.service';
 import { followService } from '../services/follow.service';
+import { paginationSchema } from '../validators/social.validator';
 
 export class UserController {
   /**
@@ -153,6 +154,36 @@ export class UserController {
       next(error);
     }
     return next();
+  }
+
+  /**
+   * Get user ratings
+   * GET /api/users/:username/ratings
+   */
+  async getUserRatings(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { username } = req.params;
+      const { page, limit } = paginationSchema.parse(req.query);
+      const result = await userService.getUserRatings(username, page, limit);
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get user reviews
+   * GET /api/users/:username/reviews
+   */
+  async getUserReviews(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { username } = req.params;
+      const { page, limit } = paginationSchema.parse(req.query);
+      const result = await userService.getUserReviews(username, page, limit);
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
   }
 }
 
