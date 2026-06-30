@@ -75,8 +75,15 @@ jest.mock('../config/database', () => ({
     activityEvent: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       count: jest.fn(),
       deleteMany: jest.fn(),
+    },
+    notification: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      updateMany: jest.fn(),
     },
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
@@ -332,4 +339,14 @@ export const testComment = {
 export const testCommentWithUser = {
   ...testComment,
   user: testUserInclude,
+};
+
+export const testNotification = {
+  id: 'test-notification-id',
+  userId: testOtherUser.id,
+  actorId: testUser.id,
+  type: 'LIKED_EVENT',
+  eventId: testActivityEvent.id,
+  read: false,
+  createdAt: new Date(),
 };
