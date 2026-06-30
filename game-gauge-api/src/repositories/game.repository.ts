@@ -133,7 +133,7 @@ export class GameRepository {
         prisma.$queryRaw<Array<Game & { _count: { reviews: number; ratings: number } }>>(
           Prisma.sql`
             SELECT g.*,
-              COALESCE(AVG(r.score), 0) as "averageRating",
+              COALESCE(AVG(r.score), 0)::float8 as "averageRating",
               COUNT(r.id)::int as "ratingCount",
               json_build_object(
                 'reviews', (SELECT COUNT(*)::int FROM "Review" rv WHERE rv."gameId" = g.id),
