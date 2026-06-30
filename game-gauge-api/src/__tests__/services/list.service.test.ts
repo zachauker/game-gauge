@@ -131,6 +131,57 @@ describe('ListService', () => {
       // Act & Assert
       await expect(listService.findById('invalid-id', testUser.id)).rejects.toThrow(NotFoundError);
     });
+
+    it('passes the viewer id through so per-viewer rating data is fetched', async () => {
+      // Arrange
+      (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(testList);
+
+      // Act
+      await listService.findById(testList.id, 'viewer-id');
+
+      // Assert
+      expect(prisma.gameList.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: testList.id },
+          include: expect.objectContaining({
+            items: expect.objectContaining({
+              include: expect.objectContaining({
+                game: expect.objectContaining({
+                  select: expect.objectContaining({
+                    genres: true,
+                    platforms: true,
+                    ratings: { where: { userId: 'viewer-id' }, select: { score: true }, take: 1 },
+                  }),
+                }),
+              }),
+            }),
+          }),
+        })
+      );
+    });
+
+    it('omits the ratings include when there is no viewer (anonymous request)', async () => {
+      // Arrange
+      (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(testList);
+
+      // Act
+      await listService.findById(testList.id, undefined);
+
+      // Assert
+      expect(prisma.gameList.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            items: expect.objectContaining({
+              include: expect.objectContaining({
+                game: expect.objectContaining({
+                  select: expect.objectContaining({ ratings: false }),
+                }),
+              }),
+            }),
+          }),
+        })
+      );
+    });
   });
 
   describe('getUserLists', () => {

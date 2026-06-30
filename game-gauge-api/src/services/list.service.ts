@@ -51,7 +51,7 @@ export class ListService {
    * Get a single list by ID
    */
   async findById(listId: string, requestingUserId?: string) {
-    const list = await listRepository.findById(listId);
+    const list = await listRepository.findById(listId, requestingUserId);
     if (!list) throw new NotFoundError('List not found');
 
     if (!list.isPublic && list.userId !== requestingUserId) {

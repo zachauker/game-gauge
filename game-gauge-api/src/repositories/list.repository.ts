@@ -10,6 +10,9 @@ export interface ListWithItems extends GameList {
         slug: string;
         coverImage: string | null;
         releaseDate: Date | null;
+        genres: string[];
+        platforms: string[];
+        ratings?: { score: number }[];
       };
     }
   >;
@@ -50,9 +53,10 @@ export class ListRepository {
   }
 
   /**
-   * Find list by ID
+   * Find list by ID. When viewerUserId is provided, also fetches that
+   * viewer's own rating for each game (used for "sort by your rating").
    */
-  async findById(id: string): Promise<ListWithItems | null> {
+  async findById(id: string, viewerUserId?: string): Promise<ListWithItems | null> {
     return prisma.gameList.findUnique({
       where: { id },
       include: {
@@ -66,6 +70,11 @@ export class ListRepository {
                 slug: true,
                 coverImage: true,
                 releaseDate: true,
+                genres: true,
+                platforms: true,
+                ratings: viewerUserId
+                  ? { where: { userId: viewerUserId }, select: { score: true }, take: 1 }
+                  : false,
               },
             },
           },
