@@ -63,7 +63,7 @@ describe('NotificationService', () => {
 
       expect(notificationRepository.findForUser).toHaveBeenCalledWith(testUser.id, 1, 20);
       expect(result.notifications).toHaveLength(1);
-      expect(result.pagination).toEqual({ page: 1, limit: 20, total: 1 });
+      expect(result.pagination).toEqual({ page: 1, limit: 20, total: 1, hasMore: false });
     });
   });
 

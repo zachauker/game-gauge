@@ -1,8 +1,11 @@
 import { prisma } from '../config/database';
+import { NotFoundError } from '../utils/errors.util';
+
+export type NotificationType = 'FOLLOWED_YOU' | 'LIKED_EVENT' | 'COMMENTED_EVENT';
 
 export interface NotificationWithRelations {
   id: string;
-  type: string;
+  type: NotificationType;
   read: boolean;
   createdAt: Date;
   actor: { id: string; username: string; avatar: string | null };
@@ -60,10 +63,11 @@ class NotificationRepository {
   }
 
   async markRead(notificationId: string, userId: string): Promise<void> {
-    await prisma.notification.updateMany({
+    const { count } = await prisma.notification.updateMany({
       where: { id: notificationId, userId },
       data: { read: true },
     });
+    if (count === 0) throw new NotFoundError('Notification not found');
   }
 
   async markAllRead(userId: string): Promise<void> {

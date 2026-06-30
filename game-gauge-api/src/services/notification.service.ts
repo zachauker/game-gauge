@@ -1,9 +1,9 @@
-import { notificationRepository } from '../repositories/notification.repository';
+import { notificationRepository, NotificationWithRelations, NotificationType } from '../repositories/notification.repository';
 
 interface CreateNotificationInput {
   userId: string;
   actorId: string;
-  type: string;
+  type: NotificationType;
   eventId?: string;
 }
 
@@ -13,11 +13,14 @@ export class NotificationService {
     await notificationRepository.create(data);
   }
 
-  async getForUser(userId: string, page: number, limit: number) {
+  async getForUser(userId: string, page: number, limit: number): Promise<{
+    notifications: NotificationWithRelations[];
+    pagination: { page: number; limit: number; total: number; hasMore: boolean };
+  }> {
     const { notifications, total } = await notificationRepository.findForUser(userId, page, limit);
     return {
       notifications,
-      pagination: { page, limit, total },
+      pagination: { page, limit, total, hasMore: page * limit < total },
     };
   }
 
