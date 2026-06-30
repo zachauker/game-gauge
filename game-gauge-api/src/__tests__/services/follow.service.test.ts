@@ -42,6 +42,7 @@ jest.mock('../../services/activity.service', () => ({
 import { followRepository } from '../../repositories/follow.repository';
 import { userRepository } from '../../repositories/user.repository';
 import { activityService } from '../../services/activity.service';
+import { notificationService } from '../../services/notification.service';
 
 // ─── Tests ────────────────────────────────────────────────────────────────
 
@@ -141,6 +142,12 @@ describe('FollowService', () => {
       );
 
       expect(followRepository.unfollow).not.toHaveBeenCalled();
+    });
+
+    it('does not fire a notification on unfollow', async () => {
+      await followService.unfollowUser(testUser.id, testOtherUser.username);
+
+      expect(notificationService.create).not.toHaveBeenCalled();
     });
   });
 
