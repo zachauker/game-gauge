@@ -40,6 +40,8 @@ model User {
   followers  UserFollow[]    @relation("Following")
   following  UserFollow[]    @relation("Follower")
   activities ActivityEvent[]
+  notifications      Notification[] @relation("NotificationRecipient")
+  sentNotifications  Notification[] @relation("NotificationActor")
 
   @@index([email])
   @@index([username])
@@ -269,6 +271,7 @@ model ActivityEvent {
   game           Game?           @relation(fields: [gameId], references: [id], onDelete: SetNull)
   eventReactions EventReaction[]
   eventComments  EventComment[]
+  notifications Notification[]
 
   @@index([userId])
   @@index([createdAt])
@@ -306,4 +309,25 @@ model EventComment {
   @@index([eventId])
   @@index([userId])
   @@index([createdAt])
+}
+
+// ──────────────────────────────────────────────────────
+// Notifications
+// ──────────────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  actorId   String
+  type      String   // FOLLOWED_YOU | LIKED_EVENT | COMMENTED_EVENT
+  eventId   String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user  User           @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User           @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  event ActivityEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([userId, read, createdAt])
+  @@index([actorId])
+  @@index([eventId])
 }
