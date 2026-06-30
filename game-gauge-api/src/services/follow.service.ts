@@ -1,6 +1,7 @@
 import { followRepository } from '../repositories/follow.repository';
 import { userRepository } from '../repositories/user.repository';
 import { activityService, ActivityType } from './activity.service';
+import { notificationService } from './notification.service';
 import {
   NotFoundError,
   ConflictError,
@@ -26,10 +27,17 @@ class FollowService {
     await followRepository.follow(followerId, target.id);
 
     // Record activity event (fire-and-forget)
-    await activityService.recordEvent(followerId, ActivityType.FOLLOWED_USER, {
+    activityService.recordEvent(followerId, ActivityType.FOLLOWED_USER, {
       targetId: target.id,
       meta: { username: target.username, avatar: target.avatar },
-    });
+    }).catch(() => {});
+
+    // Notify the followed user (fire-and-forget)
+    notificationService.create({
+      userId: target.id,
+      actorId: followerId,
+      type: 'FOLLOWED_YOU',
+    }).catch(() => {});
 
     const counts = await followRepository.getCounts(target.id);
     return {

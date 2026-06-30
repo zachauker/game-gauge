@@ -23,6 +23,11 @@ jest.mock('../../repositories/user.repository', () => ({
   },
 }));
 
+// Notification service is fire-and-forget — mock the whole thing
+jest.mock('../../services/notification.service', () => ({
+  notificationService: { create: jest.fn().mockResolvedValue(undefined) },
+}));
+
 // Activity service is fire-and-forget — mock the whole thing
 jest.mock('../../services/activity.service', () => ({
   activityService: {
