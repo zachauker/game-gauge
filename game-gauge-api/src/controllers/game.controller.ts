@@ -182,12 +182,16 @@ export class GameController {
     try {
       const idsParam = req.query.ids as string;
       if (!idsParam) {
-        res.json({ data: [] });
+        res.status(200).json({ success: true, data: [] });
         return;
       }
-      const igdbIds = idsParam.split(',').map(Number).filter(n => !isNaN(n));
+      const igdbIds = idsParam
+        .split(',')
+        .map(Number)
+        .filter(n => !isNaN(n))
+        .slice(0, 200);
       const data = await gameService.findByIgdbIds(igdbIds);
-      res.json({ data });
+      res.status(200).json({ success: true, data });
     } catch (error) {
       next(error);
     }

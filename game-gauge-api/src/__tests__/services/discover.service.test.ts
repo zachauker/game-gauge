@@ -80,11 +80,12 @@ describe('GameRepository — genre-filtered browse', () => {
 describe('GameController.getByIgdbIds', () => {
   it('returns empty array when ids param is missing', async () => {
     const req = { query: {} } as any;
-    const res = { json: jest.fn() } as any;
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
     const next = jest.fn();
     const controller = new GameController();
     await controller.getByIgdbIds(req, res, next);
-    expect(res.json).toHaveBeenCalledWith({ data: [] });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: [] });
   });
 
   it('parses comma-separated ids and calls findByIgdbIds', async () => {
@@ -92,11 +93,13 @@ describe('GameController.getByIgdbIds', () => {
       { igdbId: 123, slug: 'test-game', averageRating: 8.0, ratingCount: 5 },
     ]);
     const req = { query: { ids: '123,456' } } as any;
-    const res = { json: jest.fn() } as any;
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
     const next = jest.fn();
     const controller = new GameController();
     await controller.getByIgdbIds(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
+      success: true,
       data: [{ igdbId: 123, slug: 'test-game', averageRating: 8.0, ratingCount: 5 }],
     });
   });
