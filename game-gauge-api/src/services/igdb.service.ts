@@ -79,6 +79,7 @@ export interface IGDBSearchResult {
     name: string;
     abbreviation?: string;
   }>;
+  genres?: Array<{ id: number; name: string }>;
 }
 
 export interface IGDBExternalGame {
@@ -167,10 +168,16 @@ export class IGDBService {
    * Search for games by name
    * Returns simplified results suitable for search dropdown/list
    */
-  async searchGames(query: string, limit: number = 10): Promise<IGDBSearchResult[]> {
+  async searchGames(
+    query: string,
+    limit: number = 10,
+    genreId?: number
+  ): Promise<IGDBSearchResult[]> {
+    const genreClause = genreId ? `where genres = (${genreId});` : '';
     const apicalypseQuery = `
       search "${query}";
-      fields name, cover.url, cover.image_id, first_release_date, rating, platforms.name, platforms.abbreviation;
+      fields name, cover.url, cover.image_id, first_release_date, rating, platforms.name, platforms.abbreviation, genres.name;
+      ${genreClause}
       limit ${limit};
     `;
 
@@ -189,6 +196,7 @@ export class IGDBService {
       first_release_date: game.first_release_date,
       rating: game.rating,
       platforms: game.platforms,
+      genres: game.genres,
     }));
   }
 

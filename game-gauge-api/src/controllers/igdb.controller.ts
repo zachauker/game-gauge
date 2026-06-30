@@ -13,6 +13,11 @@ const searchQuerySchema = z.object({
     .default('10')
     .transform((val) => parseInt(val, 10))
     .refine((val) => val > 0 && val <= 50, 'Limit must be between 1 and 50'),
+  genreId: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : undefined))
+    .refine((val) => val === undefined || (!isNaN(val) && val > 0), 'genreId must be a positive integer'),
 });
 
 const importGameSchema = z.object({
@@ -26,9 +31,9 @@ export class IGDBController {
    */
   async search(req: Request, res: Response, next: NextFunction) {
     try {
-      const { q, limit } = searchQuerySchema.parse(req.query);
+      const { q, limit, genreId } = searchQuerySchema.parse(req.query);
 
-      const results = await igdbService.searchGames(q, limit);
+      const results = await igdbService.searchGames(q, limit, genreId);
 
       res.status(200).json({
         success: true,
