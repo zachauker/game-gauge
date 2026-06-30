@@ -10,7 +10,7 @@ export interface SearchOptions {
   search?: string;
   genre?: string;
   platform?: string;
-  sortBy?: 'title' | 'releaseDate' | 'createdAt' | 'metacritic';
+  sortBy?: 'title' | 'releaseDate' | 'createdAt' | 'metacritic' | 'averageRating';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -158,25 +158,28 @@ export class GameRepository {
    * Get top rated games (by average rating score)
    */
   async getTopRated(
-    limit: number = 20
+    limit: number = 20,
+    genre?: string
   ): Promise<Array<Game & { averageRating: number; ratingCount: number }>> {
-    // Get games with ratings, calculate average
-    const gamesWithRatings = await prisma.$queryRaw<
-      Array<Game & { averageRating: number; ratingCount: number }>
-    >`
-      SELECT 
-        g.*,
-        COALESCE(AVG(r.score), 0) as "averageRating",
-        COUNT(r.id)::int as "ratingCount"
-      FROM "Game" g
-      LEFT JOIN "Rating" r ON r."gameId" = g.id
-      GROUP BY g.id
-      HAVING COUNT(r.id) >= 3
-      ORDER BY AVG(r.score) DESC, COUNT(r.id) DESC
-      LIMIT ${limit}
-    `;
+    const genreFilter = genre
+      ? Prisma.sql`AND g.genres @> ARRAY[${genre}]::text[]`
+      : Prisma.empty;
 
-    return gamesWithRatings;
+    return prisma.$queryRaw<Array<Game & { averageRating: number; ratingCount: number }>>(
+      Prisma.sql`
+        SELECT
+          g.*,
+          COALESCE(AVG(r.score), 0) as "averageRating",
+          COUNT(r.id)::int as "ratingCount"
+        FROM "Game" g
+        LEFT JOIN "Rating" r ON r."gameId" = g.id
+        WHERE 1=1 ${genreFilter}
+        GROUP BY g.id
+        HAVING COUNT(r.id) >= 3
+        ORDER BY AVG(r.score) DESC, COUNT(r.id) DESC
+        LIMIT ${limit}
+      `
+    );
   }
 
   /**
@@ -184,28 +187,33 @@ export class GameRepository {
    */
   async getTrending(
     days: number = 7,
-    limit: number = 20
+    limit: number = 20,
+    genre?: string
   ): Promise<Array<Game & { activityCount: number }>> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    const trendingGames = await prisma.$queryRaw<Array<Game & { activityCount: number }>>`
-      SELECT 
-        g.*,
-        (
-          (SELECT COUNT(*)::int FROM "Rating" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate}) +
-          (SELECT COUNT(*)::int FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
-        ) as "activityCount"
-      FROM "Game" g
-      WHERE (
-        (SELECT COUNT(*) FROM "Rating" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate}) +
-        (SELECT COUNT(*) FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
-      ) > 0
-      ORDER BY "activityCount" DESC
-      LIMIT ${limit}
-    `;
+    const genreFilter = genre
+      ? Prisma.sql`AND g.genres @> ARRAY[${genre}]::text[]`
+      : Prisma.empty;
 
-    return trendingGames;
+    return prisma.$queryRaw<Array<Game & { activityCount: number }>>(
+      Prisma.sql`
+        SELECT
+          g.*,
+          (
+            (SELECT COUNT(*)::int FROM "Rating" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate}) +
+            (SELECT COUNT(*)::int FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
+          ) as "activityCount"
+        FROM "Game" g
+        WHERE (
+          (SELECT COUNT(*) FROM "Rating" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate}) +
+          (SELECT COUNT(*) FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
+        ) > 0 ${genreFilter}
+        ORDER BY "activityCount" DESC
+        LIMIT ${limit}
+      `
+    );
   }
 
   /**
@@ -487,6 +495,31 @@ export class GameRepository {
         },
       },
     });
+  }
+
+  /**
+   * Find multiple games by their IGDB IDs, returning rating summary data.
+   */
+  async findByIgdbIds(
+    igdbIds: number[]
+  ): Promise<Array<{ igdbId: number; averageRating: number; ratingCount: number; slug: string }>> {
+    if (igdbIds.length === 0) return [];
+
+    return prisma.$queryRaw<
+      Array<{ igdbId: number; averageRating: number; ratingCount: number; slug: string }>
+    >(
+      Prisma.sql`
+        SELECT
+          g."igdbId",
+          g.slug,
+          COALESCE(AVG(r.score), 0) as "averageRating",
+          COUNT(r.id)::int as "ratingCount"
+        FROM "Game" g
+        LEFT JOIN "Rating" r ON r."gameId" = g.id
+        WHERE g."igdbId" = ANY(${igdbIds}::int[])
+        GROUP BY g."igdbId", g.slug
+      `
+    );
   }
 }
 

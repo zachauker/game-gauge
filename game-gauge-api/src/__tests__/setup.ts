@@ -86,6 +86,7 @@ jest.mock('../config/database', () => ({
       count: jest.fn(),
       updateMany: jest.fn(),
     },
+    $queryRaw: jest.fn(),
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
   },
