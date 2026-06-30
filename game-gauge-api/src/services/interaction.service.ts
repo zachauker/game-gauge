@@ -1,12 +1,13 @@
 import { interactionRepository } from '../repositories/interaction.repository';
 import { prisma } from '../config/database';
 import { NotFoundError, ForbiddenError, ValidationError } from '../utils/errors.util';
+import { notificationService } from './notification.service';
 
 class InteractionService {
   // ── Reactions ────────────────────────────────────────────────────────────────
 
   async toggleReaction(userId: string, eventId: string) {
-    await this.requireEvent(eventId);
+    const event = await this.requireEvent(eventId);
 
     const already = await interactionRepository.hasReacted(userId, eventId);
 
@@ -14,6 +15,12 @@ class InteractionService {
       await interactionRepository.removeReaction(userId, eventId);
     } else {
       await interactionRepository.addReaction(userId, eventId);
+      notificationService.create({
+        userId: event.userId,
+        actorId: userId,
+        type: 'LIKED_EVENT',
+        eventId,
+      }).catch(() => {});
     }
 
     const count = await interactionRepository.getReactionCount(eventId);
@@ -27,10 +34,18 @@ class InteractionService {
     if (!trimmed) throw new ValidationError('Comment cannot be empty');
     if (trimmed.length > 500) throw new ValidationError('Comment must be 500 characters or fewer');
 
-    await this.requireEvent(eventId);
+    const event = await this.requireEvent(eventId);
 
     const comment = await interactionRepository.addComment(userId, eventId, trimmed);
     const count = await interactionRepository.getCommentCount(eventId);
+
+    notificationService.create({
+      userId: event.userId,
+      actorId: userId,
+      type: 'COMMENTED_EVENT',
+      eventId,
+    }).catch(() => {});
+
     return { comment, commentCount: count };
   }
 
@@ -53,8 +68,9 @@ class InteractionService {
   // ── Private helpers ───────────────────────────────────────────────────────────
 
   private async requireEvent(eventId: string) {
-    const count = await prisma.activityEvent.count({ where: { id: eventId } });
-    if (!count) throw new NotFoundError('Activity event not found');
+    const event = await prisma.activityEvent.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundError('Activity event not found');
+    return event;
   }
 }
 

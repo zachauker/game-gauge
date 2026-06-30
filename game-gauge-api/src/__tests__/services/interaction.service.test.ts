@@ -29,6 +29,10 @@ jest.mock('../../repositories/interaction.repository', () => ({
 
 import { interactionRepository } from '../../repositories/interaction.repository';
 
+jest.mock('../../services/notification.service', () => ({
+  notificationService: { create: jest.fn().mockResolvedValue(undefined) },
+}));
+
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('InteractionService', () => {
@@ -37,7 +41,7 @@ describe('InteractionService', () => {
   describe('toggleReaction', () => {
     beforeEach(() => {
       // Default: event exists
-      (prisma.activityEvent.count as jest.Mock).mockResolvedValue(1);
+      (prisma.activityEvent.findUnique as jest.Mock).mockResolvedValue(testActivityEvent);
       (interactionRepository.getReactionCount as jest.Mock).mockResolvedValue(1);
     });
 
@@ -83,7 +87,7 @@ describe('InteractionService', () => {
     });
 
     it('throws NotFoundError when the event does not exist', async () => {
-      (prisma.activityEvent.count as jest.Mock).mockResolvedValue(0);
+      (prisma.activityEvent.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
         interactionService.toggleReaction(testUser.id, 'nonexistent-event')
@@ -97,7 +101,7 @@ describe('InteractionService', () => {
 
   describe('addComment', () => {
     beforeEach(() => {
-      (prisma.activityEvent.count as jest.Mock).mockResolvedValue(1);
+      (prisma.activityEvent.findUnique as jest.Mock).mockResolvedValue(testActivityEvent);
       (interactionRepository.addComment as jest.Mock).mockResolvedValue(testCommentWithUser);
       (interactionRepository.getCommentCount as jest.Mock).mockResolvedValue(1);
     });
@@ -155,7 +159,7 @@ describe('InteractionService', () => {
     });
 
     it('throws NotFoundError when the event does not exist', async () => {
-      (prisma.activityEvent.count as jest.Mock).mockResolvedValue(0);
+      (prisma.activityEvent.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
         interactionService.addComment(testUser.id, 'nonexistent-event', 'Hello')
@@ -205,7 +209,7 @@ describe('InteractionService', () => {
 
   describe('getComments', () => {
     beforeEach(() => {
-      (prisma.activityEvent.count as jest.Mock).mockResolvedValue(1);
+      (prisma.activityEvent.findUnique as jest.Mock).mockResolvedValue(testActivityEvent);
     });
 
     it('returns the comment list for a valid event', async () => {
@@ -227,7 +231,7 @@ describe('InteractionService', () => {
     });
 
     it('throws NotFoundError when the event does not exist', async () => {
-      (prisma.activityEvent.count as jest.Mock).mockResolvedValue(0);
+      (prisma.activityEvent.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(interactionService.getComments('nonexistent-event')).rejects.toThrow(
         NotFoundError
