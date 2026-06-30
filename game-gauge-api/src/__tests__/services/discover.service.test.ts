@@ -30,6 +30,8 @@ describe('GameRepository — genre-filtered browse', () => {
       (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
       await repo.getTrending(7, 6, 'Action');
       expect(prisma.$queryRaw as jest.Mock).toHaveBeenCalled();
+      const call = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
+      expect(JSON.stringify(call)).toContain('Action');
     });
   });
 

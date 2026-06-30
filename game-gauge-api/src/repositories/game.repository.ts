@@ -206,10 +206,11 @@ export class GameRepository {
             (SELECT COUNT(*)::int FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
           ) as "activityCount"
         FROM "Game" g
-        WHERE (
-          (SELECT COUNT(*) FROM "Rating" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate}) +
-          (SELECT COUNT(*) FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
-        ) > 0 ${genreFilter}
+        WHERE 1=1 ${genreFilter}
+          AND (
+            (SELECT COUNT(*) FROM "Rating" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate}) +
+            (SELECT COUNT(*) FROM "Review" WHERE "gameId" = g.id AND "createdAt" >= ${cutoffDate})
+          ) > 0
         ORDER BY "activityCount" DESC
         LIMIT ${limit}
       `
