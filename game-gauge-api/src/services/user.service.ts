@@ -1,6 +1,6 @@
 import { userRepository, UserProfile, UserStats } from '../repositories/user.repository';
-import { ratingRepository } from '../repositories/rating.repository';
-import { reviewRepository } from '../repositories/review.repository';
+import { ratingRepository, ProfileRatingPage } from '../repositories/rating.repository';
+import { reviewRepository, ProfileReviewPage } from '../repositories/review.repository';
 import { ConflictError, NotFoundError } from '../utils/errors.util';
 
 export class UserService {
@@ -107,7 +107,7 @@ export class UserService {
   /**
    * Get paginated ratings for a user by username
    */
-  async getUserRatings(username: string, page: number, limit: number) {
+  async getUserRatings(username: string, page: number, limit: number): Promise<ProfileRatingPage> {
     const profile = await userRepository.getProfile(username);
     if (!profile) throw new NotFoundError('User not found');
     return ratingRepository.findByUserProfile(profile.id, page, limit);
@@ -116,7 +116,7 @@ export class UserService {
   /**
    * Get paginated reviews for a user by username
    */
-  async getUserReviews(username: string, page: number, limit: number) {
+  async getUserReviews(username: string, page: number, limit: number): Promise<ProfileReviewPage> {
     const profile = await userRepository.getProfile(username);
     if (!profile) throw new NotFoundError('User not found');
     return reviewRepository.findByUserProfile(profile.id, page, limit);
