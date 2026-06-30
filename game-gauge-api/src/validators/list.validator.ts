@@ -2,6 +2,12 @@ import { z } from 'zod';
 export const COMPLETION_TYPES = ['beaten', '100pct', 'abandoned', 'endless'] as const;
 export type CompletionType = (typeof COMPLETION_TYPES)[number];
 
+export const LIST_SORT_BY = ['custom', 'title', 'dateAdded', 'progress', 'releaseDate', 'rating'] as const;
+export type ListSortBy = (typeof LIST_SORT_BY)[number];
+
+export const LIST_SORT_DIR = ['asc', 'desc'] as const;
+export type ListSortDir = (typeof LIST_SORT_DIR)[number];
+
 export const createListSchema = z.object({
   name: z
     .string()
@@ -29,6 +35,18 @@ export const updateListSchema = z.object({
     .trim()
     .optional(),
   isPublic: z.boolean().optional(),
+  sortBy: z
+    .enum(LIST_SORT_BY, {
+      errorMap: () => ({
+        message: `sortBy must be one of: ${LIST_SORT_BY.join(', ')}`,
+      }),
+    })
+    .optional(),
+  sortDir: z
+    .enum(LIST_SORT_DIR, {
+      errorMap: () => ({ message: 'sortDir must be "asc" or "desc"' }),
+    })
+    .optional(),
 });
 
 export const addGameToListSchema = z.object({

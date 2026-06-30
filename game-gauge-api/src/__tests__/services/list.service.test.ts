@@ -16,6 +16,7 @@ import {
   testListItem,
 } from '../setup';
 import { prisma } from '../../config/database';
+import { updateListSchema } from '../../validators/list.validator';
 // ──────────────────────────────────────────────
 // Mock steam-api.service so tests never hit the
 // real Steam API, and we can control responses.
@@ -221,6 +222,29 @@ describe('ListService', () => {
       // Assert
       expect(prisma.gameList.update).toHaveBeenCalled();
       expect(result.name).toBe(updateData.name);
+    });
+
+    it('should persist sortBy and sortDir', async () => {
+      // Arrange
+      const sortUpdate = { sortBy: 'title' as const, sortDir: 'desc' as const };
+      const updatedList = { ...testList, ...sortUpdate };
+      (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(testList);
+      (prisma.gameList.update as jest.Mock).mockResolvedValue(updatedList);
+
+      // Act
+      const result = await listService.update(testList.id, testUser.id, sortUpdate);
+
+      // Assert
+      expect(prisma.gameList.update).toHaveBeenCalledWith({
+        where: { id: testList.id },
+        data: sortUpdate,
+      });
+      expect(result.sortBy).toBe('title');
+      expect(result.sortDir).toBe('desc');
+    });
+
+    it('should reject an invalid sortBy value at the validator level', () => {
+      expect(() => updateListSchema.parse({ sortBy: 'not-a-real-field' })).toThrow();
     });
 
     it('should throw ForbiddenError if user is not list owner', async () => {
