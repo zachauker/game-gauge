@@ -117,10 +117,11 @@ export class GameRepository {
     }
 
     // Build orderBy clause
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Prisma's RatingOrderByRelationAggregateInput only exposes _count at the type level,
+    // but the query engine supports _avg on relation aggregates at runtime.
     const orderBy: Prisma.GameOrderByWithRelationInput =
       sortBy === 'averageRating'
-        ? ({ ratings: { _avg: { score: sortOrder } } } as any)
+        ? ({ ratings: { _avg: { score: sortOrder } } } as unknown as Prisma.GameOrderByWithRelationInput)
         : { [sortBy]: sortOrder };
 
     // Calculate pagination
