@@ -4,6 +4,7 @@ import {
   testUser,
   testOtherUser,
   testConversation,
+  testGroupConversation,
   testConversationParticipant,
   testOtherConversationParticipant,
   testMessage,
@@ -118,6 +119,33 @@ describe('MessageService', () => {
       ).rejects.toThrow(ForbiddenError);
     });
 
+    it('throws ForbiddenError when the sender has left the conversation', async () => {
+      (conversationRepository.findById as jest.Mock).mockResolvedValue({
+        ...testConversation,
+        participants: [
+          testConversationParticipant,
+          { ...testOtherConversationParticipant, status: 'ACCEPTED', leftAt: new Date() },
+        ],
+      });
+
+      await expect(
+        service.send(testConversation.id, testOtherUser.id, { type: 'TEXT', content: 'hi' })
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('does not check for blocks in a group conversation', async () => {
+      (conversationRepository.findById as jest.Mock).mockResolvedValue({
+        ...testGroupConversation,
+        participants: [testConversationParticipant, testOtherConversationParticipant],
+      });
+      (blockService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.send(testGroupConversation.id, testUser.id, { type: 'TEXT', content: 'hi' })
+      ).resolves.toEqual(testMessage);
+      expect(blockService.isBlockedEitherDirection).not.toHaveBeenCalled();
+    });
+
     it('throws BadRequestError for empty TEXT content', async () => {
       await expect(
         service.send(testConversation.id, testUser.id, { type: 'TEXT', content: '   ' })
@@ -144,6 +172,22 @@ describe('MessageService', () => {
 
       await expect(service.listMessages(testConversation.id, 'stranger-id')).rejects.toThrow(
         NotFoundError
+      );
+    });
+
+    it('passes explicit before/limit through to the repository', async () => {
+      (conversationRepository.findById as jest.Mock).mockResolvedValue(acceptedConversation);
+      (messageRepository.findForConversation as jest.Mock).mockResolvedValue([testMessage]);
+
+      const before = 'some-message-id';
+      const limit = 25;
+
+      await service.listMessages(testConversation.id, testUser.id, before, limit);
+
+      expect(messageRepository.findForConversation).toHaveBeenCalledWith(
+        testConversation.id,
+        before,
+        limit
       );
     });
   });
@@ -189,6 +233,25 @@ describe('MessageService', () => {
         service.edit(testConversation.id, testMessage.id, testUser.id, 'Updated')
       ).rejects.toThrow(BadRequestError);
     });
+
+    it('throws NotFoundError when the message does not exist', async () => {
+      (messageRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.edit(testConversation.id, testMessage.id, testUser.id, 'Updated')
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when the message belongs to a different conversation', async () => {
+      (messageRepository.findById as jest.Mock).mockResolvedValue({
+        ...testMessage,
+        conversationId: 'some-other-conversation-id',
+      });
+
+      await expect(
+        service.edit(testConversation.id, testMessage.id, testUser.id, 'Updated')
+      ).rejects.toThrow(NotFoundError);
+    });
   });
 
   describe('delete', () => {
@@ -211,6 +274,25 @@ describe('MessageService', () => {
       await expect(
         service.delete(testConversation.id, testMessage.id, testOtherUser.id)
       ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('throws NotFoundError when the message does not exist', async () => {
+      (messageRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.delete(testConversation.id, testMessage.id, testUser.id)
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when the message belongs to a different conversation', async () => {
+      (messageRepository.findById as jest.Mock).mockResolvedValue({
+        ...testMessage,
+        conversationId: 'some-other-conversation-id',
+      });
+
+      await expect(
+        service.delete(testConversation.id, testMessage.id, testUser.id)
+      ).rejects.toThrow(NotFoundError);
     });
   });
 });
