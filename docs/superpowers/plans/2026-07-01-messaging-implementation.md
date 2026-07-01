@@ -3210,7 +3210,7 @@ npm run dev
 
 - Open the app in a browser while authenticated
 - Confirm the paper-plane icon appears in the navbar next to the notification bell
-- Confirm clicking it navigates to `/messages` (the page won't exist until Task 31 — a 404 here is expected for now)
+- Confirm clicking it navigates to `/messages` (the page won't exist until Task 26 — a 404 here is expected for now)
 
 - [ ] **Step 4: Commit**
 
