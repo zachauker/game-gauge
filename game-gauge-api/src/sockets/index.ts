@@ -1,17 +1,57 @@
-// Placeholder socket layer — real socket.io implementation lands in a later task.
-// This file exists only so services that will eventually emit real-time events
-// (e.g. ConversationService) can compile and be tested before the socket.io
-// layer is built. Do NOT build out real logic here; the later task should
-// REPLACE this file, not merge with it.
+import { Server as SocketIOServer } from 'socket.io';
+import { Server as HTTPServer } from 'http';
+import { verifyToken } from '../utils/jwt.util';
+import { conversationRepository } from '../repositories/conversation.repository';
+import { logger } from '../utils/logger.util';
 
-export function emitToConversation(
-  _conversationId: string,
-  _event: string,
-  _payload: unknown
-): void {
-  // Placeholder — real implementation lands in a later task (socket.io real-time layer)
+let io: SocketIOServer | null = null;
+
+function getAllowedOrigins(): string[] {
+  const fromEnv = process.env.FRONTEND_URL?.split(',').map((url) => url.trim());
+  return fromEnv && fromEnv.length > 0 ? fromEnv : ['http://localhost:3001'];
 }
 
-export function emitToUser(_userId: string, _event: string, _payload: unknown): void {
-  // Placeholder — real implementation lands in a later task (socket.io real-time layer)
+export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
+  io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: getAllowedOrigins(),
+      credentials: true,
+    },
+  });
+
+  io.use((socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token as string | undefined;
+      if (!token) throw new Error('No token provided');
+      const payload = verifyToken(token);
+      socket.data.userId = payload.userId;
+      next();
+    } catch {
+      next(new Error('Unauthorized'));
+    }
+  });
+
+  io.on('connection', async (socket) => {
+    const userId = socket.data.userId as string;
+    socket.join(`user:${userId}`);
+
+    try {
+      const conversationIds = await conversationRepository.findActiveConversationIdsForUser(
+        userId
+      );
+      conversationIds.forEach((id) => socket.join(`conversation:${id}`));
+    } catch (error) {
+      logger.error('Failed to join conversation rooms', error);
+    }
+  });
+
+  return io;
+}
+
+export function emitToConversation(conversationId: string, event: string, payload: unknown): void {
+  io?.to(`conversation:${conversationId}`).emit(event, payload);
+}
+
+export function emitToUser(userId: string, event: string, payload: unknown): void {
+  io?.to(`user:${userId}`).emit(event, payload);
 }
