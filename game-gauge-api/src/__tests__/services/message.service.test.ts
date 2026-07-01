@@ -80,6 +80,18 @@ describe('MessageService', () => {
       expect(result).toEqual(testMessage);
     });
 
+    it('marks the conversation read for the sender so their own message is not unread', async () => {
+      await service.send(testConversation.id, testUser.id, {
+        type: 'TEXT',
+        content: 'Hello!',
+      });
+
+      expect(conversationRepository.markRead).toHaveBeenCalledWith(
+        testConversation.id,
+        testUser.id
+      );
+    });
+
     it('creates a GAME_SHARE message using entityId as gameId', async () => {
       await service.send(testConversation.id, testUser.id, {
         type: 'GAME_SHARE',

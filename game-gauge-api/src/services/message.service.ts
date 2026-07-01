@@ -43,6 +43,11 @@ export class MessageService {
       activityEventId: input.type === 'ACTIVITY_SHARE' ? input.entityId : undefined,
     });
 
+    // The sender is caught up on their own message the instant they send it —
+    // without this, lastReadAt would lag behind the new lastMessageAt and the
+    // conversation would incorrectly show as unread for the sender themselves.
+    await conversationRepository.markRead(conversationId, senderId);
+
     emitToConversation(conversationId, 'message:new', message);
     for (const participant of conversation.participants) {
       if (participant.userId !== senderId && participant.status === 'ACCEPTED') {
