@@ -160,6 +160,7 @@ export class ConversationService {
 
     const target = await userRepository.findByUsername(targetUsername);
     if (!target) throw new NotFoundError('User not found');
+    if (target.id === userId) throw new ValidationError('You cannot add yourself as a participant');
 
     const blocked = await blockService.isBlockedEitherDirection(userId, target.id);
     if (blocked) throw new ForbiddenError(`You cannot add ${target.username}`);
@@ -185,6 +186,9 @@ export class ConversationService {
     if (!isSelf && conversation.creatorId !== requesterId) {
       throw new ForbiddenError('Only the group creator can remove other members');
     }
+
+    const isTargetParticipant = conversation.participants.some((p) => p.userId === targetUserId);
+    if (!isTargetParticipant) throw new NotFoundError('That user is not a member of this conversation');
 
     await conversationRepository.setLeftAt(conversationId, targetUserId);
     emitToConversation(conversationId, 'conversation:updated', { id: conversationId });

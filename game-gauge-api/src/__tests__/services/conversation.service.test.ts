@@ -336,6 +336,17 @@ describe('ConversationService', () => {
       ).rejects.toThrow(ForbiddenError);
     });
 
+    it('throws ValidationError when the creator tries to add themselves', async () => {
+      (conversationRepository.findById as jest.Mock).mockResolvedValue(
+        withParticipants(testGroupConversation)
+      );
+      (userRepository.findByUsername as jest.Mock).mockResolvedValue(testUser);
+
+      await expect(
+        service.addMember(testGroupConversation.id, testUser.id, testUser.username)
+      ).rejects.toThrow(ValidationError);
+    });
+
     it('allows any member to remove themselves', async () => {
       (conversationRepository.findById as jest.Mock).mockResolvedValue(
         withParticipants(testGroupConversation)
@@ -357,6 +368,16 @@ describe('ConversationService', () => {
       await expect(
         service.removeMember(testGroupConversation.id, testOtherUser.id, testUser.id)
       ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('throws NotFoundError when the target user is not currently a participant', async () => {
+      (conversationRepository.findById as jest.Mock).mockResolvedValue(
+        withParticipants(testGroupConversation)
+      );
+
+      await expect(
+        service.removeMember(testGroupConversation.id, testUser.id, 'not-a-member-id')
+      ).rejects.toThrow(NotFoundError);
     });
   });
 
