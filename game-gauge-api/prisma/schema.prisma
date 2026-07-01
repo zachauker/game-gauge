@@ -152,6 +152,8 @@ model GameList {
   isPublic    Boolean @default(false)
   listType    String  @default("custom")
   isDefault   Boolean @default(false)
+  sortBy      String  @default("custom")
+  sortDir     String  @default("asc")
 
   userId    String
   createdAt DateTime @default(now())
