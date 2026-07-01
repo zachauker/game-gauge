@@ -1,4 +1,5 @@
 import { listRepository } from '../repositories/list.repository';
+import { messageRepository } from '../repositories/message.repository';
 import { gameRepository } from '../repositories/game.repository';
 import { steamApiService } from './steam-api.service';
 import { userRepository } from '../repositories/user.repository';
@@ -48,14 +49,19 @@ export class ListService {
   }
 
   /**
-   * Get a single list by ID
+   * Get a single list by ID. A private list is also viewable if it was
+   * shared with the requesting user via a message (see message.repository's
+   * hasSharedListAccess) — sharing acts as an explicit access grant.
    */
   async findById(listId: string, requestingUserId?: string) {
     const list = await listRepository.findById(listId, requestingUserId);
     if (!list) throw new NotFoundError('List not found');
 
     if (!list.isPublic && list.userId !== requestingUserId) {
-      throw new ForbiddenError('This list is private');
+      const hasShareAccess = requestingUserId
+        ? await messageRepository.hasSharedListAccess(listId, requestingUserId)
+        : false;
+      if (!hasShareAccess) throw new ForbiddenError('This list is private');
     }
 
     return list;
