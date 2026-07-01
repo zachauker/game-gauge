@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { userController } from '../controllers/user.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { activityController } from '../controllers/activity.controller';
+import { blockController } from '../controllers/block.controller';
 
 const router = Router();
 
@@ -30,6 +31,13 @@ router.patch('/me', authenticate, userController.updateProfile.bind(userControll
  * @access  Private
  */
 router.patch('/me/username', authenticate, userController.updateUsername.bind(userController));
+
+/**
+ * @route   GET /api/users/me/blocks
+ * @desc    List users the current user has blocked
+ * @access  Private
+ */
+router.get('/me/blocks', authenticate, blockController.listBlocked.bind(blockController));
 
 /**
  * Public routes
@@ -79,5 +87,19 @@ router.get('/:username/ratings', userController.getUserRatings.bind(userControll
  * @access  Public
  */
 router.get('/:username/reviews', userController.getUserReviews.bind(userController));
+
+/**
+ * @route   POST /api/users/:username/block
+ * @desc    Block a user
+ * @access  Private
+ */
+router.post('/:username/block', authenticate, blockController.block.bind(blockController));
+
+/**
+ * @route   DELETE /api/users/:username/block
+ * @desc    Unblock a user
+ * @access  Private
+ */
+router.delete('/:username/block', authenticate, blockController.unblock.bind(blockController));
 
 export default router;
