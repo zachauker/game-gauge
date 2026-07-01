@@ -23,6 +23,7 @@ export const sendMessageSchema = z
   })
   .refine((data) => (data.type === 'TEXT' ? !!data.content : !!data.entityId), {
     message: 'content is required for TEXT messages; entityId is required for share messages',
+    path: ['content'],
   });
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 
