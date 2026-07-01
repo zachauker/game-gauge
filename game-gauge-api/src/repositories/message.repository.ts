@@ -82,7 +82,7 @@ class MessageRepository {
         listId,
         deletedAt: null,
         conversation: {
-          participants: { some: { userId, status: 'ACCEPTED' } },
+          participants: { some: { userId, status: 'ACCEPTED', leftAt: null } },
         },
       },
     });
