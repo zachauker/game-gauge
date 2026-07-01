@@ -274,6 +274,22 @@ describe('ConversationService', () => {
     });
   });
 
+  describe('requireParticipant — departed participants', () => {
+    it('throws NotFoundError when the participant has left the conversation', async () => {
+      (conversationRepository.findById as jest.Mock).mockResolvedValue({
+        ...testGroupConversation,
+        participants: [
+          testConversationParticipant,
+          { ...testOtherConversationParticipant, leftAt: new Date() },
+        ],
+      });
+
+      await expect(
+        service.rename(testGroupConversation.id, testOtherUser.id, 'New Name')
+      ).rejects.toThrow(NotFoundError);
+    });
+  });
+
   describe('rename', () => {
     it('allows the creator to rename a group', async () => {
       (conversationRepository.findById as jest.Mock).mockResolvedValue(

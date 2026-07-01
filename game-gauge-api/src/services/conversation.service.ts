@@ -89,7 +89,7 @@ export class ConversationService {
   private async requireParticipant(conversationId: string, userId: string) {
     const conversation = await conversationRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found');
-    const participant = conversation.participants.find((p) => p.userId === userId);
+    const participant = conversation.participants.find((p) => p.userId === userId && !p.leftAt);
     if (!participant) throw new NotFoundError('Conversation not found');
     return { conversation, participant };
   }
