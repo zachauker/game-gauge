@@ -55,29 +55,50 @@ class ConversationRepository {
     return rows.map((r) => r.conversationId);
   }
 
+  /** IDs of users blocked by, or who have blocked, the given user (either direction). */
+  private async getBlockedEitherDirectionIds(userId: string): Promise<Set<string>> {
+    const rows = await prisma.block.findMany({
+      where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+      select: { blockerId: true, blockedId: true },
+    });
+    const ids = new Set<string>();
+    for (const row of rows) {
+      ids.add(row.blockerId === userId ? row.blockedId : row.blockerId);
+    }
+    return ids;
+  }
+
   async listInboxForUser(userId: string, page: number, limit: number) {
-    const participants = await prisma.conversationParticipant.findMany({
-      where: { userId, status: 'ACCEPTED', leftAt: null },
-      include: {
-        conversation: {
-          include: {
-            participants: {
-              where: { userId: { not: userId } },
-              include: { user: { select: PARTICIPANT_USER_SELECT } },
-            },
-            messages: {
-              where: { deletedAt: null },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
+    const [participants, blockedIds] = await Promise.all([
+      prisma.conversationParticipant.findMany({
+        where: { userId, status: 'ACCEPTED', leftAt: null },
+        include: {
+          conversation: {
+            include: {
+              participants: {
+                where: { userId: { not: userId } },
+                include: { user: { select: PARTICIPANT_USER_SELECT } },
+              },
+              messages: {
+                where: { deletedAt: null },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
             },
           },
         },
-      },
-    });
+      }),
+      this.getBlockedEitherDirectionIds(userId),
+    ]);
 
-    const visible = participants.filter(
-      (p) => !p.hiddenAt || p.conversation.lastMessageAt > p.hiddenAt
-    );
+    const visible = participants.filter((p) => {
+      if (p.hiddenAt && p.conversation.lastMessageAt <= p.hiddenAt) return false;
+      if (!p.conversation.isGroup) {
+        const other = p.conversation.participants[0];
+        if (other && blockedIds.has(other.user.id)) return false;
+      }
+      return true;
+    });
     visible.sort(
       (a, b) => b.conversation.lastMessageAt.getTime() - a.conversation.lastMessageAt.getTime()
     );
@@ -169,15 +190,34 @@ class ConversationRepository {
   }
 
   async countUnreadForUser(userId: string): Promise<number> {
-    const participants = await prisma.conversationParticipant.findMany({
-      where: { userId, status: 'ACCEPTED', leftAt: null },
-      include: { conversation: { select: { lastMessageAt: true } } },
-    });
-    return participants.filter(
-      (p) =>
-        (!p.hiddenAt || p.conversation.lastMessageAt > p.hiddenAt) &&
-        p.lastReadAt < p.conversation.lastMessageAt
-    ).length;
+    const [participants, blockedIds] = await Promise.all([
+      prisma.conversationParticipant.findMany({
+        where: { userId, status: 'ACCEPTED', leftAt: null },
+        include: {
+          conversation: {
+            select: {
+              lastMessageAt: true,
+              isGroup: true,
+              participants: {
+                where: { userId: { not: userId } },
+                select: { userId: true },
+              },
+            },
+          },
+        },
+      }),
+      this.getBlockedEitherDirectionIds(userId),
+    ]);
+
+    return participants.filter((p) => {
+      if (p.hiddenAt && p.conversation.lastMessageAt <= p.hiddenAt) return false;
+      if (p.lastReadAt >= p.conversation.lastMessageAt) return false;
+      if (!p.conversation.isGroup) {
+        const otherId = p.conversation.participants[0]?.userId;
+        if (otherId && blockedIds.has(otherId)) return false;
+      }
+      return true;
+    }).length;
   }
 }
 
