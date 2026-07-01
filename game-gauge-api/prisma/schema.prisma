@@ -37,11 +37,16 @@ model User {
   eventComments  EventComment[]
 
   // Social
-  followers  UserFollow[]    @relation("Following")
-  following  UserFollow[]    @relation("Follower")
-  activities ActivityEvent[]
-  notifications      Notification[] @relation("NotificationRecipient")
-  sentNotifications  Notification[] @relation("NotificationActor")
+  followers         UserFollow[]    @relation("Following")
+  following         UserFollow[]    @relation("Follower")
+  activities        ActivityEvent[]
+  notifications     Notification[]  @relation("NotificationRecipient")
+  sentNotifications Notification[]  @relation("NotificationActor")
+
+  conversationParticipants ConversationParticipant[]
+  messagesSent             Message[]
+  blocksMade               Block[]                   @relation("Blocker")
+  blocksReceived           Block[]                   @relation("Blocked")
 
   @@index([email])
   @@index([username])
@@ -65,16 +70,16 @@ model Game {
   metacritic Int?
 
   // Structured metadata — populated on import, additive to existing records
-  themes          String[]  // e.g. ["Action", "Fantasy", "Horror"]
-  gameModes       String[]  // e.g. ["Single player", "Multiplayer", "Co-operative"]
-  perspectives    String[]  // e.g. ["First person", "Third person"]
-  franchise       String?   // Primary series/franchise name
-  ageRating       String?   // "E" / "E10+" / "T" / "M" / "AO" / "PEGI 3" etc.
-  storyline       String?   @db.Text  // IGDB storyline (narrative, distinct from summary)
-  igdbRating      Float?    // Community rating normalised to 0–10
-  igdbRatingCount Int?      // Vote count for igdbRating
-  websiteOfficial String?   // Official site URL
-  websiteSteam    String?   // Steam store page URL
+  themes          String[] // e.g. ["Action", "Fantasy", "Horror"]
+  gameModes       String[] // e.g. ["Single player", "Multiplayer", "Co-operative"]
+  perspectives    String[] // e.g. ["First person", "Third person"]
+  franchise       String? // Primary series/franchise name
+  ageRating       String? // "E" / "E10+" / "T" / "M" / "AO" / "PEGI 3" etc.
+  storyline       String?  @db.Text // IGDB storyline (narrative, distinct from summary)
+  igdbRating      Float? // Community rating normalised to 0–10
+  igdbRatingCount Int? // Vote count for igdbRating
+  websiteOfficial String? // Official site URL
+  websiteSteam    String? // Steam store page URL
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -85,6 +90,7 @@ model Game {
   steamLibraryEntries SteamLibrarySync[]
   steamAppMappings    SteamAppMapping[]
   activityEvents      ActivityEvent[]
+  messageShares       Message[]
 
   @@index([slug])
   @@index([title])
@@ -102,10 +108,11 @@ model Review {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  game         Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  rating       Rating?         @relation(fields: [ratingId], references: [id], onDelete: SetNull)
-  helpfulVotes ReviewHelpful[]
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game          Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  rating        Rating?         @relation(fields: [ratingId], references: [id], onDelete: SetNull)
+  helpfulVotes  ReviewHelpful[]
+  messageShares Message[]
 
   @@unique([userId, gameId])
   @@index([gameId])
@@ -159,8 +166,9 @@ model GameList {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items GameListItem[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items         GameListItem[]
+  messageShares Message[]
 
   @@index([userId])
   @@index([isPublic])
@@ -273,7 +281,8 @@ model ActivityEvent {
   game           Game?           @relation(fields: [gameId], references: [id], onDelete: SetNull)
   eventReactions EventReaction[]
   eventComments  EventComment[]
-  notifications Notification[]
+  notifications  Notification[]
+  messageShares  Message[]
 
   @@index([userId])
   @@index([createdAt])
@@ -320,7 +329,7 @@ model Notification {
   id        String   @id @default(uuid())
   userId    String
   actorId   String
-  type      String   // FOLLOWED_YOU | LIKED_EVENT | COMMENTED_EVENT
+  type      String // FOLLOWED_YOU | LIKED_EVENT | COMMENTED_EVENT
   eventId   String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -332,4 +341,75 @@ model Notification {
   @@index([userId, read, createdAt])
   @@index([actorId])
   @@index([eventId])
+}
+
+// ──────────────────────────────────────────────────────
+// Messaging
+// ──────────────────────────────────────────────────────
+model Conversation {
+  id            String   @id @default(uuid())
+  isGroup       Boolean  @default(false)
+  name          String?
+  creatorId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastMessageAt DateTime @default(now())
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([lastMessageAt])
+}
+
+model ConversationParticipant {
+  id             String    @id @default(uuid())
+  conversationId String
+  userId         String
+  status         String    @default("ACCEPTED") // ACCEPTED | PENDING | DECLINED
+  hiddenAt       DateTime?
+  leftAt         DateTime?
+  lastReadAt     DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, status])
+}
+
+model Message {
+  id              String    @id @default(uuid())
+  conversationId  String
+  senderId        String
+  type            String    @default("TEXT") // TEXT | GAME_SHARE | LIST_SHARE | REVIEW_SHARE | ACTIVITY_SHARE
+  content         String?   @db.Text
+  gameId          String?
+  listId          String?
+  reviewId        String?
+  activityEventId String?
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  conversation  Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender        User           @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  game          Game?          @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  list          GameList?      @relation(fields: [listId], references: [id], onDelete: SetNull)
+  review        Review?        @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  activityEvent ActivityEvent? @relation(fields: [activityEventId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
 }
