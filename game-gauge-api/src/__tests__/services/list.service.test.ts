@@ -182,6 +182,31 @@ describe('ListService', () => {
         })
       );
     });
+
+    it('grants access to a private list when it was shared with the viewer in a message', async () => {
+      const privateList = { ...testList, isPublic: false, userId: testLinkedUser.id };
+      (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(privateList);
+      (prisma.message.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await listService.findById(privateList.id, testUser.id);
+
+      expect(prisma.message.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ type: 'LIST_SHARE', listId: privateList.id }),
+        })
+      );
+      expect(result).toEqual(privateList);
+    });
+
+    it('denies access to a private list with no share and no ownership', async () => {
+      const privateList = { ...testList, isPublic: false, userId: testLinkedUser.id };
+      (prisma.gameList.findUnique as jest.Mock).mockResolvedValue(privateList);
+      (prisma.message.count as jest.Mock).mockResolvedValue(0);
+
+      await expect(listService.findById(privateList.id, testUser.id)).rejects.toThrow(
+        ForbiddenError
+      );
+    });
   });
 
   describe('getUserLists', () => {

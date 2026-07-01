@@ -86,6 +86,34 @@ jest.mock('../config/database', () => ({
       count: jest.fn(),
       updateMany: jest.fn(),
     },
+    conversation: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+    conversationParticipant: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      upsert: jest.fn(),
+    },
+    message: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+    },
+    block: {
+      create: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+      findMany: jest.fn(),
+    },
     $queryRaw: jest.fn(),
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
@@ -350,5 +378,71 @@ export const testNotification = {
   type: 'LIKED_EVENT',
   eventId: testActivityEvent.id,
   read: false,
+  createdAt: new Date(),
+};
+
+// ── Messaging fixtures ─────────────────────────────────
+
+/** A 1:1 conversation between testUser and testOtherUser */
+export const testConversation = {
+  id: 'test-conversation-id',
+  isGroup: false,
+  name: null,
+  creatorId: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  lastMessageAt: new Date(),
+};
+
+/** A group conversation created by testUser */
+export const testGroupConversation = {
+  id: 'test-group-conversation-id',
+  isGroup: true,
+  name: 'Test Group',
+  creatorId: testUser.id,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  lastMessageAt: new Date(),
+};
+
+export const testConversationParticipant = {
+  id: 'test-participant-id',
+  conversationId: testConversation.id,
+  userId: testUser.id,
+  status: 'ACCEPTED',
+  hiddenAt: null,
+  leftAt: null,
+  lastReadAt: new Date(),
+};
+
+export const testOtherConversationParticipant = {
+  id: 'test-other-participant-id',
+  conversationId: testConversation.id,
+  userId: testOtherUser.id,
+  status: 'ACCEPTED',
+  hiddenAt: null,
+  leftAt: null,
+  lastReadAt: new Date(),
+};
+
+export const testMessage = {
+  id: 'test-message-id',
+  conversationId: testConversation.id,
+  senderId: testUser.id,
+  type: 'TEXT',
+  content: 'Hello!',
+  gameId: null,
+  listId: null,
+  reviewId: null,
+  activityEventId: null,
+  editedAt: null,
+  deletedAt: null,
+  createdAt: new Date(),
+};
+
+export const testBlock = {
+  id: 'test-block-id',
+  blockerId: testUser.id,
+  blockedId: testOtherUser.id,
   createdAt: new Date(),
 };
